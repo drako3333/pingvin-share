@@ -1,3 +1,13 @@
+import * as bufferModule from "buffer";
+if (!(bufferModule as any).SlowBuffer) {
+  const Dummy = class {};
+  (Dummy.prototype as any).equal = () => false;
+  (bufferModule as any).SlowBuffer = Dummy;
+}
+if (typeof (global as any).SlowBuffer === "undefined") {
+  (global as any).SlowBuffer = (bufferModule as any).SlowBuffer;
+}
+
 import {
   ClassSerializerInterceptor,
   Logger,
@@ -51,7 +61,7 @@ async function bootstrap() {
     const chunkSize = config.get("share.chunkSize");
     bodyParser.raw({
       type: "application/octet-stream",
-      limit: `${chunkSize}B`,
+      limit: `${chunkSize * 2}B`,
     })(req, res, next);
   });
 

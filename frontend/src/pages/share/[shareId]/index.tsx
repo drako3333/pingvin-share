@@ -1,4 +1,4 @@
-import { Box, Group, Text, Title } from "@mantine/core";
+import { Box, Group, Text, Title, Button } from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { GetServerSidePropsContext } from "next";
 import { useEffect, useState } from "react";
@@ -13,6 +13,9 @@ import shareService from "../../../services/share.service";
 import { Share as ShareType } from "../../../types/share.type";
 import toast from "../../../utils/toast.util";
 import { byteToHumanSizeString } from "../../../utils/fileSize.util";
+import useUser from "../../../hooks/user.hook";
+import Link from "next/link";
+import { TbChartBar, TbEdit } from "react-icons/tb";
 
 export function getServerSideProps(context: GetServerSidePropsContext) {
   return {
@@ -24,6 +27,9 @@ const Share = ({ shareId }: { shareId: string }) => {
   const modals = useModals();
   const [share, setShare] = useState<ShareType>();
   const t = useTranslate();
+  const { user } = useUser();
+
+  const canManage = user && (user.isAdmin || (share?.creator && user.id === share.creator.id));
 
   const getShareToken = async (password?: string) => {
     await shareService
@@ -105,7 +111,7 @@ const Share = ({ shareId }: { shareId: string }) => {
         description={t("share.description")}
       />
 
-      <Group position="apart" mb="lg">
+      <Group position="apart" mb="lg" align="flex-start">
         <Box style={{ maxWidth: "70%" }}>
           <Title order={3}>{share?.name || share?.id}</Title>
           <Text size="sm">{share?.description}</Text>
@@ -125,6 +131,32 @@ const Share = ({ shareId }: { shareId: string }) => {
                 }}
               />
             </Text>
+          )}
+          {canManage && (
+            <Group spacing="xs" mt="sm">
+              <Link href={`/share/${shareId}/analytics`}>
+                <Button
+                  leftIcon={<TbChartBar size={16} />}
+                  variant="light"
+                  color="teal"
+                  size="xs"
+                  radius="md"
+                >
+                  Statistiques
+                </Button>
+              </Link>
+              <Link href={`/share/${shareId}/edit`}>
+                <Button
+                  leftIcon={<TbEdit size={16} />}
+                  variant="light"
+                  color="orange"
+                  size="xs"
+                  radius="md"
+                >
+                  Modifier
+                </Button>
+              </Link>
+            </Group>
           )}
         </Box>
 

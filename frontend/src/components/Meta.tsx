@@ -19,7 +19,7 @@ const Meta = ({
       <meta
         name="og:description"
         content={
-          description ?? "An open-source and self-hosted sharing platform."
+          description ?? "Your premium, fast, and secure sharing platform."
         }
       />
       <meta name="twitter:title" content={metaTitle} />

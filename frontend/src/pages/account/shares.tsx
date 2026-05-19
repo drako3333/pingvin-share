@@ -15,7 +15,7 @@ import { useModals } from "@mantine/modals";
 import moment from "moment";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { TbEdit, TbInfoCircle, TbLink, TbLock, TbTrash } from "react-icons/tb";
+import { TbEdit, TbInfoCircle, TbLink, TbLock, TbTrash, TbChartBar } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import Meta from "../../components/Meta";
 import showShareInformationsModal from "../../components/account/showShareInformationsModal";
@@ -119,6 +119,11 @@ const MyShares = () => {
                   </td>
                   <td>
                     <Group position="right">
+                      <Link href={`/share/${share.id}/analytics`}>
+                        <ActionIcon color="teal" variant="light" size={25} title="Statistiques & Analyses">
+                          <TbChartBar />
+                        </ActionIcon>
+                      </Link>
                       <Link href={`/share/${share.id}/edit`}>
                         <ActionIcon color="orange" variant="light" size={25}>
                           <TbEdit />

@@ -12,7 +12,7 @@ export const configVariables = {
   general: {
     appName: {
       type: "string",
-      defaultValue: "Pingvin Share",
+      defaultValue: "Ustrohosting Share",
       secret: false,
     },
     appUrl: {
@@ -64,6 +64,36 @@ export const configVariables = {
     zipCompressionLevel: {
       type: "number",
       defaultValue: "9",
+    },
+    globalDownloadRateLimit: {
+      type: "number",
+      defaultValue: "0",
+      secret: false,
+    },
+    globalUploadRateLimit: {
+      type: "number",
+      defaultValue: "0",
+      secret: false,
+    },
+    webhookDiscord: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
+    webhookSlack: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
+    webhookTelegramToken: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
+    webhookTelegramChatId: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
     },
     chunkSize: {
       type: "filesize",

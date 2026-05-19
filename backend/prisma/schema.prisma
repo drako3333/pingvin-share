@@ -130,6 +130,7 @@ model File {
 
   name String
   size String
+  hash String?
 
   shareId String
   share   Share  @relation(fields: [shareId], references: [id], onDelete: Cascade)
@@ -160,4 +161,26 @@ model Config {
   order        Int
 
   @@id([name, category])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  action    String
+  userId    String?
+  username  String?
+  ip        String
+  details   String
+}
+
+model ShareAnalytics {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  shareId   String
+  ip        String
+  country   String?
+  userAgent String?
+  device    String?
+  browser   String?
+  fileId    String?
 }

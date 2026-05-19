@@ -2,6 +2,13 @@ import useTranslate from "../../../hooks/useTranslate.hook";
 import Meta from "../../../components/Meta";
 import TotpForm from "../../../components/auth/TotpForm";
 import { useRouter } from "next/router";
+import { GetServerSidePropsContext } from "next";
+
+export function getServerSideProps(context: GetServerSidePropsContext) {
+  return {
+    props: { loginToken: context.params!.loginToken },
+  };
+}
 
 const Totp = () => {
   const t = useTranslate();

@@ -28,12 +28,15 @@ import { UpdatePasswordDTO } from "./dto/updatePassword.dto";
 import { VerifyTotpDTO } from "./dto/verifyTotp.dto";
 import { JwtGuard } from "./guard/jwt.guard";
 
+import { AuditLogService } from "src/audit/audit.service";
+
 @Controller("auth")
 export class AuthController {
   constructor(
     private authService: AuthService,
     private authTotpService: AuthTotpService,
     private config: ConfigService,
+    private auditLogService: AuditLogService,
   ) {}
 
   @Post("signUp")
@@ -82,6 +85,13 @@ export class AuthController {
         response,
         result.refreshToken,
         result.accessToken,
+      );
+      await this.auditLogService.create(
+        "CONNEXION",
+        ip,
+        { username: dto.username },
+        undefined,
+        dto.username,
       );
     }
 

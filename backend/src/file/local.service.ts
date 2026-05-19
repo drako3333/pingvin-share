@@ -63,13 +63,24 @@ export class LocalFileService {
         expectedChunkIndex,
       });
 
-    const buffer = Buffer.from(data, "base64");
+    const buffer = data
+      ? (Buffer.isBuffer(data)
+          ? data
+          : typeof data === "string"
+          ? Buffer.from(data, "base64")
+          : Buffer.from(JSON.stringify(data)))
+      : Buffer.alloc(0);
 
     // Check if there is enough space on the server
-    const space = await fs.statfs(SHARE_DIRECTORY);
-    const availableSpace = space.bavail * space.bsize;
-    if (availableSpace < buffer.byteLength) {
-      throw new InternalServerErrorException("Not enough space on the server");
+    try {
+      const space = await fs.statfs(SHARE_DIRECTORY);
+      const availableSpace = space.bavail * space.bsize;
+      if (availableSpace < buffer.byteLength) {
+        throw new InternalServerErrorException("Not enough space on the server");
+      }
+    } catch (e) {
+      // If statfs is not supported, restricted, or throws an error, log it but continue the upload
+      console.warn("Unable to check disk space with statfs, bypassing space check:", e);
     }
 
     // Check if share size limit is exceeded
@@ -98,24 +109,55 @@ export class LocalFileService {
 
     const isLastChunk = chunk.index == chunk.total - 1;
     if (isLastChunk) {
+      const tempPath = `${SHARE_DIRECTORY}/${shareId}/${file.id}`;
       await fs.rename(
         `${SHARE_DIRECTORY}/${shareId}/${file.id}.tmp-chunk`,
-        `${SHARE_DIRECTORY}/${shareId}/${file.id}`,
+        tempPath,
       );
-      const fileSize = (
-        await fs.stat(`${SHARE_DIRECTORY}/${shareId}/${file.id}`)
-      ).size;
+      const fileSize = (await fs.stat(tempPath)).size;
+
+      let fileHash: string | null = null;
+      try {
+        fileHash = await this.getFileSha256(tempPath);
+      } catch {
+        fileHash = null;
+      }
+
+      if (fileHash) {
+        const targetDir = `${SHARE_DIRECTORY}/_files`;
+        await fs.mkdir(targetDir, { recursive: true });
+        const finalCASPath = `${targetDir}/${fileHash}`;
+
+        try {
+          await fs.access(finalCASPath);
+          await fs.unlink(tempPath);
+        } catch {
+          await fs.rename(tempPath, finalCASPath);
+        }
+      }
+
       await this.prisma.file.create({
         data: {
           id: file.id,
           name: file.name,
           size: fileSize.toString(),
+          hash: fileHash,
           share: { connect: { id: shareId } },
         },
       });
     }
 
     return file;
+  }
+
+  private async getFileSha256(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash("sha256");
+      const stream = createReadStream(filePath);
+      stream.on("data", (data) => hash.update(data));
+      stream.on("end", () => resolve(hash.digest("hex")));
+      stream.on("error", (err) => reject(err));
+    });
   }
 
   async get(shareId: string, fileId: string) {
@@ -125,11 +167,15 @@ export class LocalFileService {
 
     if (!fileMetaData) throw new NotFoundException("File not found");
 
-    const file = createReadStream(`${SHARE_DIRECTORY}/${shareId}/${fileId}`);
+    const filePath = fileMetaData.hash
+      ? `${SHARE_DIRECTORY}/_files/${fileMetaData.hash}`
+      : `${SHARE_DIRECTORY}/${shareId}/${fileId}`;
+
+    const file = createReadStream(filePath);
 
     return {
       metaData: {
-        mimeType: mime.contentType(fileMetaData.name.split(".").pop()),
+        mimeType: mime.contentType(fileMetaData.name.split(".").pop()) || "application/octet-stream",
         ...fileMetaData,
         size: fileMetaData.size,
       },
@@ -144,12 +190,56 @@ export class LocalFileService {
 
     if (!fileMetaData) throw new NotFoundException("File not found");
 
-    await fs.unlink(`${SHARE_DIRECTORY}/${shareId}/${fileId}`);
+    if (fileMetaData.hash) {
+      const otherFilesWithHash = await this.prisma.file.findMany({
+        where: {
+          hash: fileMetaData.hash,
+          id: { not: fileId },
+        },
+      });
+
+      if (otherFilesWithHash.length === 0) {
+        try {
+          await fs.unlink(`${SHARE_DIRECTORY}/_files/${fileMetaData.hash}`);
+        } catch {
+          // Ignore
+        }
+      }
+    } else {
+      try {
+        await fs.unlink(`${SHARE_DIRECTORY}/${shareId}/${fileId}`);
+      } catch {
+        // Ignore
+      }
+    }
 
     await this.prisma.file.delete({ where: { id: fileId } });
   }
 
   async deleteAllFiles(shareId: string) {
+    const files = await this.prisma.file.findMany({
+      where: { shareId },
+    });
+
+    for (const file of files) {
+      if (file.hash) {
+        const otherFilesWithHash = await this.prisma.file.findMany({
+          where: {
+            hash: file.hash,
+            shareId: { not: shareId },
+          },
+        });
+
+        if (otherFilesWithHash.length === 0) {
+          try {
+            await fs.unlink(`${SHARE_DIRECTORY}/_files/${file.hash}`);
+          } catch {
+            // Ignore
+          }
+        }
+      }
+    }
+
     await fs.rm(`${SHARE_DIRECTORY}/${shareId}`, {
       recursive: true,
       force: true,

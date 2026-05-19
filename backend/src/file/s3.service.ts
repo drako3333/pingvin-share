@@ -56,7 +56,13 @@ export class S3FileService {
       throw new BadRequestException("Invalid file ID format");
     }
 
-    const buffer = Buffer.from(data, "base64");
+    const buffer = data
+      ? (Buffer.isBuffer(data)
+          ? data
+          : typeof data === "string"
+          ? Buffer.from(data, "base64")
+          : Buffer.from(JSON.stringify(data)))
+      : Buffer.alloc(0);
     const key = `${this.getS3Path()}${shareId}/${file.name}`;
     const bucketName = this.config.get("s3.bucketName");
     const s3Instance = this.getS3Instance();

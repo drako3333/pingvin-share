@@ -6,22 +6,66 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
   StreamableFile,
   UseGuards,
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import * as contentDisposition from "content-disposition";
-import { Response } from "express";
+import { Response, Request } from "express";
 import { CreateShareGuard } from "src/share/guard/createShare.guard";
 import { ShareOwnerGuard } from "src/share/guard/shareOwner.guard";
 import { FileService } from "./file.service";
 import { FileSecurityGuard } from "./guard/fileSecurity.guard";
 import * as mime from "mime-types";
+import { ConfigService } from "src/config/config.service";
+import { Transform, TransformCallback } from "stream";
+import { AuditLogService } from "src/audit/audit.service";
+import { ShareAnalyticsService } from "src/share/share-analytics.service";
+import { User } from "@prisma/client";
+
+export class ThrottleStream extends Transform {
+  private bps: number;
+  private totalBytesSent = 0;
+  private startTime = Date.now();
+
+  constructor(bps: number) {
+    super();
+    this.bps = bps;
+  }
+
+  _transform(chunk: any, encoding: BufferEncoding, callback: TransformCallback) {
+    if (this.bps <= 0) {
+      this.push(chunk);
+      return callback();
+    }
+
+    this.totalBytesSent += chunk.length;
+    const elapsedTime = (Date.now() - this.startTime) / 1000;
+    const expectedTime = this.totalBytesSent / this.bps;
+    const delay = (expectedTime - elapsedTime) * 1000;
+
+    if (delay > 10) {
+      setTimeout(() => {
+        this.push(chunk);
+        callback();
+      }, delay);
+    } else {
+      this.push(chunk);
+      callback();
+    }
+  }
+}
 
 @Controller("shares/:shareId/files")
 export class FileController {
-  constructor(private fileService: FileService) {}
+  constructor(
+    private fileService: FileService,
+    private configService: ConfigService,
+    private auditLogService: AuditLogService,
+    private shareAnalyticsService: ShareAnalyticsService,
+  ) {}
 
   @Post()
   @SkipThrottle()
@@ -39,7 +83,37 @@ export class FileController {
   ) {
     const { id, name, chunkIndex, totalChunks } = query;
 
-    // Data can be empty if the file is empty
+    const globalUploadRateLimit = parseInt(
+      this.configService.get("share.globalUploadRateLimit") || "0",
+    );
+
+    if (globalUploadRateLimit > 0) {
+      const rawBuffer = body
+        ? (Buffer.isBuffer(body)
+            ? body
+            : typeof body === "string"
+            ? Buffer.from(body, "base64")
+            : Buffer.from(JSON.stringify(body)))
+        : Buffer.alloc(0);
+      const bufferSize = rawBuffer.byteLength;
+      const expectedTimeMs = (bufferSize / globalUploadRateLimit) * 1000;
+
+      const startTime = Date.now();
+      const result = await this.fileService.create(
+        body,
+        { index: parseInt(chunkIndex), total: parseInt(totalChunks) },
+        { id, name },
+        shareId,
+      );
+      const elapsed = Date.now() - startTime;
+      const delay = expectedTimeMs - elapsed;
+
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      return result;
+    }
+
     return await this.fileService.create(
       body,
       { index: parseInt(chunkIndex), total: parseInt(totalChunks) },
@@ -53,15 +127,52 @@ export class FileController {
   async getZip(
     @Res({ passthrough: true }) res: Response,
     @Param("shareId") shareId: string,
+    @Req() request: Request,
   ) {
     const zipStream = await this.fileService.getZip(shareId);
+
+    const user = request["user"] as User;
+    const username = user?.username || "Anonyme";
+    const userId = user?.id || undefined;
+
+    await this.auditLogService.create(
+      "TELECHARGEMENT_ZIP",
+      request.ip,
+      { shareId },
+      userId,
+      username,
+    );
+
+    // Asynchronously log analytics
+    const ua = request.headers["user-agent"] || "";
+    void this.shareAnalyticsService.record(shareId, request.ip, ua);
 
     res.set({
       "Content-Type": "application/zip",
       "Content-Disposition": contentDisposition(`${shareId}.zip`),
     });
 
+    const globalDownloadRateLimit = parseInt(
+      this.configService.get("share.globalDownloadRateLimit") || "0",
+    );
+
+    if (globalDownloadRateLimit > 0) {
+      const throttleStream = new ThrottleStream(globalDownloadRateLimit);
+      const throttledZipStream = zipStream.pipe(throttleStream) as any;
+      return new StreamableFile(throttledZipStream);
+    }
+
     return new StreamableFile(zipStream);
+  }
+
+  @Delete(":fileId")
+  @UseGuards(FileSecurityGuard, ShareOwnerGuard)
+  async remove(
+    @Param("shareId") shareId: string,
+    @Param("fileId") fileId: string,
+  ) {
+    await this.fileService.remove(shareId, fileId);
+    return;
   }
 
   @Get(":fileId")
@@ -71,8 +182,25 @@ export class FileController {
     @Param("shareId") shareId: string,
     @Param("fileId") fileId: string,
     @Query("download") download = "true",
+    @Req() request: Request,
   ) {
     const file = await this.fileService.get(shareId, fileId);
+
+    const user = request["user"] as User;
+    const username = user?.username || "Anonyme";
+    const userId = user?.id || undefined;
+
+    await this.auditLogService.create(
+      "TELECHARGEMENT",
+      request.ip,
+      { shareId, fileId, fileName: file.metaData.name },
+      userId,
+      username,
+    );
+
+    // Asynchronously log analytics
+    const ua = request.headers["user-agent"] || "";
+    void this.shareAnalyticsService.record(shareId, request.ip, ua, fileId);
 
     const headers = {
       "Content-Type":
@@ -81,26 +209,28 @@ export class FileController {
       "Content-Security-Policy": "sandbox",
     };
 
+    const fileName = file.metaData.name.split("/").pop();
+
     if (download === "true") {
-      headers["Content-Disposition"] = contentDisposition(file.metaData.name);
+      headers["Content-Disposition"] = contentDisposition(fileName);
     } else {
-      headers["Content-Disposition"] = contentDisposition(file.metaData.name, {
+      headers["Content-Disposition"] = contentDisposition(fileName, {
         type: "inline",
       });
     }
 
     res.set(headers);
 
-    return new StreamableFile(file.file);
-  }
+    const globalDownloadRateLimit = parseInt(
+      this.configService.get("share.globalDownloadRateLimit") || "0",
+    );
 
-  @Delete(":fileId")
-  @SkipThrottle()
-  @UseGuards(ShareOwnerGuard)
-  async remove(
-    @Param("fileId") fileId: string,
-    @Param("shareId") shareId: string,
-  ) {
-    await this.fileService.remove(shareId, fileId);
+    if (globalDownloadRateLimit > 0) {
+      const throttleStream = new ThrottleStream(globalDownloadRateLimit);
+      const throttledFileStream = file.file.pipe(throttleStream) as any;
+      return new StreamableFile(throttledFileStream);
+    }
+
+    return new StreamableFile(file.file);
   }
 }

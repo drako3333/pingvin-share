@@ -1,5 +1,4 @@
 import {
-  Anchor,
   Button,
   Center,
   Container,
@@ -21,33 +20,19 @@ const Intro = () => {
             <Logo height={80} width={80} />
           </Center>
           <Center>
-            <Title order={2}>Welcome to Pingvin Share</Title>
+            <Title order={2}>Welcome to Ustrohosting Share</Title>
           </Center>
           <Text>
-            If you enjoy Pingvin Share please ⭐️ it on{" "}
-            <Anchor
-              target="_blank"
-              href="https://github.com/stonith404/pingvin-share"
-            >
-              GitHub
-            </Anchor>{" "}
-            or{" "}
-            <Anchor
-              target="_blank"
-              href="https://github.com/sponsors/stonith404"
-            >
-              buy me a coffee
-            </Anchor>{" "}
-            if you want to support my work.
+            Your premium sharing platform is ready. Here you can configure user registrations, SMTP email, S3 providers, reverse shares, security, and more.
           </Text>
-          <Text>Enough talked, have fun with Pingvin Share!</Text>
-          <Text mt="lg">How to you want to continue?</Text>
+          <Text>Enjoy hosting with Ustrohosting Share!</Text>
+          <Text mt="lg">How would you like to continue?</Text>
           <Stack>
             <Button href="/admin/config/general" component={Link}>
               Customize configuration
             </Button>
             <Button href="/" component={Link} variant="light">
-              Explore Pingvin Share
+              Explore Ustrohosting Share
             </Button>
           </Stack>
         </Stack>

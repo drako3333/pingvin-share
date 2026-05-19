@@ -141,6 +141,10 @@ const removeReverseShare = async (id: string) => {
   await api.delete(`/reverseShares/${id}`);
 };
 
+const getAnalytics = async (shareId: string): Promise<any[]> => {
+  return (await api.get(`/shares/${shareId}/analytics`)).data;
+};
+
 export default {
   list,
   create,
@@ -161,4 +165,5 @@ export default {
   createReverseShare,
   getMyReverseShares,
   removeReverseShare,
+  getAnalytics,
 };

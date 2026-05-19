@@ -17,6 +17,8 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { ReverseShareModule } from "./reverseShare/reverseShare.module";
 import { ShareModule } from "./share/share.module";
 import { UserModule } from "./user/user.module";
+import { NotificationModule } from "./notification/notification.module";
+import { AuditModule } from "./audit/audit.module";
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { UserModule } from "./user/user.module";
     ReverseShareModule,
     OAuthModule,
     AppCacheModule,
+    NotificationModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [

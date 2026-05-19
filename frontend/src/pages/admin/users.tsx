@@ -1,7 +1,8 @@
 import { Button, Group, Space, Text, Title } from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { useEffect, useState } from "react";
-import { TbPlus } from "react-icons/tb";
+import { TbArrowLeft, TbPlus } from "react-icons/tb";
+import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 import Meta from "../../components/Meta";
 import ManageUserTable from "../../components/admin/users/ManageUserTable";
@@ -60,9 +61,21 @@ const Users = () => {
     <>
       <Meta title={t("admin.users.title")} />
       <Group position="apart" align="baseline" mb={20}>
-        <Title mb={30} order={3}>
-          <FormattedMessage id="admin.users.title" />
-        </Title>
+        <div>
+          <Button
+            component={Link}
+            href="/admin"
+            variant="subtle"
+            leftIcon={<TbArrowLeft size={16} />}
+            compact
+            mb={10}
+          >
+            Retour à l'administration
+          </Button>
+          <Title mb={30} order={3}>
+            <FormattedMessage id="admin.users.title" />
+          </Title>
+        </div>
         <Button
           onClick={() =>
             showCreateUserModal(modals, config.get("smtp.enabled"), getUsers)

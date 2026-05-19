@@ -14,21 +14,21 @@ export default {
   // END navbar
 
   // /
-  "home.title": "A <h>self-hosted</h> file sharing platform.",
+  "home.title": "Your premium file sharing platform <h>Ustrohosting Share</h>.",
 
   "home.description":
-    "Do you really want to give your personal files in the hand of third parties like WeTransfer?",
-  "home.bullet.a.name": "Self-Hosted",
-  "home.bullet.a.description": "Host Pingvin Share on your own machine.",
-  "home.bullet.b.name": "Privacy",
+    "Share and transfer your files and folders instantly, with maximum speed and absolute security.",
+  "home.bullet.a.name": "Ultra High Speed",
+  "home.bullet.a.description": "Transfer your data at maximum speed powered by our optimized cloud infrastructure.",
+  "home.bullet.b.name": "Total Privacy",
   "home.bullet.b.description":
-    "Your files are yours and will never be accessed by third parties.",
-  "home.bullet.c.name": "No annoying file size limit",
+    "Your files are stored securely and will never be accessed or shared with third parties.",
+  "home.bullet.c.name": "No Size Limits",
   "home.bullet.c.description":
-    "Upload files as big as you want. Only your hard drive will be your limit.",
+    "Send large files or entire folders without any restrictive file size limits.",
 
   "home.button.start": "Get started",
-  "home.button.source": "Source code",
+  "home.button.source": "Ustrohosting",
   // END /
 
   // /auth/signin
@@ -513,6 +513,18 @@ export default {
   "admin.config.share.auto-open-share-modal": "Auto open create share modal",
   "admin.config.share.auto-open-share-modal.description":
     "The share creation modal automatically appears when a user selects files, eliminating the need to manually click the button.",
+  "admin.config.share.global-download-rate-limit": "Global download rate limit",
+  "admin.config.share.global-download-rate-limit.description": "Maximum global download rate per second (in bytes). Set to 0 to disable limit.",
+  "admin.config.share.global-upload-rate-limit": "Global upload rate limit",
+  "admin.config.share.global-upload-rate-limit.description": "Maximum global upload rate per second (in bytes). Set to 0 to disable limit.",
+  "admin.config.share.webhook-discord": "Discord Webhook URL",
+  "admin.config.share.webhook-discord.description": "Discord Webhook URL to receive beautiful styled Markdown notification cards on share activities.",
+  "admin.config.share.webhook-slack": "Slack Webhook URL",
+  "admin.config.share.webhook-slack.description": "Slack Webhook URL to receive styled notifications on share activities.",
+  "admin.config.share.webhook-telegram-token": "Telegram Bot Token",
+  "admin.config.share.webhook-telegram-token.description": "The API Token of your Telegram Bot created via @BotFather.",
+  "admin.config.share.webhook-telegram-chat-id": "Telegram Chat ID",
+  "admin.config.share.webhook-telegram-chat-id.description": "The unique ID of the Telegram channel or group conversation where notifications will be sent.",
 
   "admin.config.smtp.enabled": "Enable",
   "admin.config.smtp.enabled.description":

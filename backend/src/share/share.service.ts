@@ -10,6 +10,7 @@ import * as archiver from "archiver";
 import * as argon from "argon2";
 import * as fs from "fs";
 import * as moment from "moment";
+import * as qrcode from "qrcode-svg";
 import { ClamScanService } from "src/clamscan/clamscan.service";
 import { ConfigService } from "src/config/config.service";
 import { EmailService } from "src/email/email.service";
@@ -117,7 +118,10 @@ export class ShareService {
     const writeStream = fs.createWriteStream(`${path}/archive.zip`);
 
     for (const file of files) {
-      archive.append(fs.createReadStream(`${path}/${file.id}`), {
+      const filePath = file.hash
+        ? `${SHARE_DIRECTORY}/_files/${file.hash}`
+        : `${path}/${file.id}`;
+      archive.append(fs.createReadStream(filePath), {
         name: file.name,
       });
     }
@@ -187,6 +191,7 @@ export class ShareService {
     const updatedShare = await this.prisma.share.update({
       where: { id },
       data: { uploadLocked: true },
+      include: { files: true },
     });
 
     return {
@@ -392,5 +397,16 @@ export class ShareService {
     } catch {
       return false;
     }
+  }
+
+  async getQrCode(id: string): Promise<string> {
+    const appUrl = this.configService.get("general.appUrl");
+    const shareUrl = `${appUrl}/s/${id}`;
+    const qr = new qrcode({
+      content: shareUrl,
+      container: "svg-viewbox",
+      join: true,
+    });
+    return qr.svg();
   }
 }

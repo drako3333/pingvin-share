@@ -1,10 +1,11 @@
-import { Button, Group } from "@mantine/core";
+import { Button, Card, Center, Group, Text } from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { cleanNotifications } from "@mantine/notifications";
 import { AxiosError } from "axios";
 import pLimit from "p-limit";
 import { useEffect, useRef, useState } from "react";
 import { FormattedMessage } from "react-intl";
+import { TbDownload } from "react-icons/tb";
 import Meta from "../../components/Meta";
 import Dropzone from "../../components/upload/Dropzone";
 import FileList from "../../components/upload/FileList";
@@ -42,6 +43,12 @@ const Upload = ({
   const [files, setFiles] = useState<FileUpload[]>([]);
   const [isUploading, setisUploading] = useState(false);
 
+  // Speed and sparkline tracking states
+  const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [speedHistory, setSpeedHistory] = useState<number[]>([]);
+  const bytesUploadedRef = useRef<Record<number, number>>({});
+  const lastBytesRef = useRef(0);
+
   useConfirmLeave({
     message: t("upload.notify.confirm-leave"),
     enabled: isUploading,
@@ -52,12 +59,89 @@ const Upload = ({
   maxShareSize ??= parseInt(config.get("share.maxSize"));
   const autoOpenCreateUploadModal = config.get("share.autoOpenShareModal");
 
-  const uploadFiles = async (share: CreateShare, files: FileUpload[]) => {
+  // Track upload speed in real time (every 1 second)
+  useEffect(() => {
+    if (!isUploading) {
+      setCurrentSpeed(0);
+      setSpeedHistory([]);
+      lastBytesRef.current = 0;
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const totalBytesUploaded = Object.values(bytesUploadedRef.current).reduce((a, b) => a + b, 0);
+      const deltaBytes = Math.max(0, totalBytesUploaded - lastBytesRef.current);
+      lastBytesRef.current = totalBytesUploaded;
+
+      setCurrentSpeed(deltaBytes);
+      setSpeedHistory((prev) => {
+        const next = [...prev, deltaBytes];
+        if (next.length > 20) next.shift(); // Keep last 20 records
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isUploading]);
+
+  // Prompt to resume pending upload on file selection if matching
+  useEffect(() => {
+    if (files.length > 0 && !isUploading) {
+      const pendingShareStr = localStorage.getItem("pingvin_pending_share");
+      if (pendingShareStr) {
+        const pendingShare = JSON.parse(pendingShareStr);
+        const filesMatch =
+          files.length === pendingShare.files.length &&
+          files.every(
+            (f, idx) =>
+              f.name === pendingShare.files[idx].name &&
+              f.size === pendingShare.files[idx].size,
+          );
+
+        if (filesMatch) {
+          modals.openConfirmModal({
+            title: "Reprendre le téléversement ?",
+            children: "Un téléversement précédent a été interrompu. Souhaitez-vous reprendre là où il s'était arrêté ?",
+            labels: { confirm: "Oui, reprendre", cancel: "Non, recommencer" },
+            onConfirm: () => {
+              const restoredFiles = files.map((f, idx) => {
+                const savedProgress = localStorage.getItem(
+                  `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                );
+                f.uploadingProgress = savedProgress ? parseFloat(savedProgress) : 0;
+                return f;
+              });
+              setFiles(restoredFiles);
+              uploadFiles({} as any, restoredFiles, pendingShare.id);
+            },
+            onCancel: () => {
+              localStorage.removeItem("pingvin_pending_share");
+            },
+          });
+        }
+      }
+    }
+  }, [files]);
+
+  const uploadFiles = async (share: CreateShare, files: FileUpload[], existingShareId?: string) => {
     setisUploading(true);
 
     try {
       const isReverseShare = router.pathname != "/upload";
-      createdShare = await shareService.create(share, isReverseShare);
+      if (existingShareId) {
+        createdShare = { id: existingShareId } as any;
+      } else {
+        createdShare = await shareService.create(share, isReverseShare);
+      }
+
+      // Save upload states to localStorage
+      localStorage.setItem(
+        "pingvin_pending_share",
+        JSON.stringify({
+          id: createdShare.id,
+          files: files.map((f) => ({ name: f.name, size: f.size })),
+        }),
+      );
     } catch (e) {
       toast.axiosError(e);
       setisUploading(false);
@@ -65,7 +149,6 @@ const Upload = ({
     }
 
     const fileUploadPromises = files.map(async (file, fileIndex) =>
-      // Limit the number of concurrent uploads to 3
       promiseLimit(async () => {
         let fileId;
 
@@ -78,19 +161,35 @@ const Upload = ({
               return file;
             }),
           );
+          // Persist progress per file
+          localStorage.setItem(
+            `pingvin_pending_share_progress_${createdShare.id}_${fileIndex}`,
+            String(progress),
+          );
         };
 
-        setFileProgress(1);
+        const currentSavedProgress = parseFloat(
+          localStorage.getItem(`pingvin_pending_share_progress_${createdShare.id}_${fileIndex}`) || "0",
+        );
 
         let chunks = Math.ceil(file.size / chunkSize.current);
-
-        // If the file is 0 bytes, we still need to upload 1 chunk
         if (chunks == 0) chunks++;
 
-        for (let chunkIndex = 0; chunkIndex < chunks; chunkIndex++) {
+        let startChunkIndex = 0;
+        if (currentSavedProgress > 0 && currentSavedProgress < 100) {
+          startChunkIndex = Math.floor((currentSavedProgress / 100) * chunks);
+        }
+
+        setFileProgress(Math.max(1, currentSavedProgress));
+
+        for (let chunkIndex = startChunkIndex; chunkIndex < chunks; chunkIndex++) {
           const from = chunkIndex * chunkSize.current;
           const to = from + chunkSize.current;
           const blob = file.slice(from, to);
+
+          // Update speed counter bytes
+          bytesUploadedRef.current[fileIndex] = from;
+
           try {
             await shareService
               .uploadFile(
@@ -107,21 +206,20 @@ const Upload = ({
                 fileId = response.id;
               });
 
+            bytesUploadedRef.current[fileIndex] = to;
             setFileProgress(((chunkIndex + 1) / chunks) * 100);
           } catch (e) {
             if (
               e instanceof AxiosError &&
               e.response?.data.error == "unexpected_chunk_index"
             ) {
-              // Retry with the expected chunk index
               chunkIndex = e.response!.data!.expectedChunkIndex - 1;
               continue;
             } else {
               setFileProgress(-1);
-              // Retry after 5 seconds
+              // Wait 5 seconds and retry the SAME chunk instead of restarting from index 0!
               await new Promise((resolve) => setTimeout(resolve, 5000));
-              chunkIndex = -1;
-
+              chunkIndex--; // Decr to counter loop increment
               continue;
             }
           }
@@ -161,7 +259,6 @@ const Upload = ({
   };
 
   useEffect(() => {
-    // Check if there are any files that failed to upload
     const fileErrorCount = files.filter(
       (file) => file.uploadingProgress == -1,
     ).length;
@@ -182,7 +279,6 @@ const Upload = ({
       errorToastShown = false;
     }
 
-    // Complete share
     if (
       files.length > 0 &&
       files.every((file) => file.uploadingProgress >= 100) &&
@@ -194,10 +290,63 @@ const Upload = ({
           setisUploading(false);
           showCompletedUploadModal(modals, share);
           setFiles([]);
+          // Clean localStorage keys
+          localStorage.removeItem("pingvin_pending_share");
+          files.forEach((_, idx) => {
+            localStorage.removeItem(`pingvin_pending_share_progress_${createdShare.id}_${idx}`);
+          });
         })
         .catch(() => toast.error(t("upload.notify.generic-error")));
     }
   }, [files]);
+
+  const renderSparkline = () => {
+    if (speedHistory.length < 2) return null;
+    const width = 350;
+    const height = 45;
+    const maxVal = Math.max(...speedHistory, 1000);
+    const points = speedHistory
+      .map((val, idx) => {
+        const x = (idx / (speedHistory.length - 1)) * width;
+        const y = height - (val / maxVal) * height + 2;
+        return `${x},${y}`;
+      })
+      .join(" ");
+
+    return (
+      <svg width="100%" height={height} style={{ overflow: "visible" }}>
+        <polyline
+          fill="none"
+          stroke="#228be6"
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+        />
+      </svg>
+    );
+  };
+
+  const formatSeconds = (seconds: number) => {
+    if (!isFinite(seconds) || seconds < 0) return "--";
+    if (seconds < 60) return `${Math.ceil(seconds)}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.ceil(seconds % 60);
+    return `${mins}m ${secs}s`;
+  };
+
+  const totalFilesSize = files.reduce((n, { size }) => n + size, 0);
+  const totalUploaded = Object.values(bytesUploadedRef.current).reduce((a, b) => a + b, 0);
+  const remainingBytes = Math.max(0, totalFilesSize - totalUploaded);
+  const etaSeconds = currentSpeed > 0 ? remainingBytes / currentSpeed : 0;
+
+  const byteToHumanSizeString = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   return (
     <>
@@ -211,6 +360,44 @@ const Upload = ({
           <FormattedMessage id="common.button.share" />
         </Button>
       </Group>
+
+      {isUploading && (
+        <Card
+          shadow="sm"
+          p="md"
+          radius="md"
+          mb={20}
+          withBorder
+          style={{
+            backdropFilter: "blur(8px)",
+            background: "rgba(255,255,255,0.75)",
+            borderColor: "rgba(0,0,0,0.06)",
+          }}
+        >
+          <Group position="apart" align="center">
+            <div>
+              <Text size="xs" color="dimmed" weight={600} transform="uppercase" style={{ letterSpacing: "0.05em" }}>
+                Vitesse de téléversement
+              </Text>
+              <Text size="xl" weight={800} color="blue">
+                {byteToHumanSizeString(currentSpeed)}/s
+              </Text>
+            </div>
+            <div>
+              <Text size="xs" color="dimmed" weight={600} transform="uppercase" style={{ letterSpacing: "0.05em" }}>
+                Temps restant
+              </Text>
+              <Text size="xl" weight={800}>
+                {formatSeconds(etaSeconds)}
+              </Text>
+            </div>
+          </Group>
+          <div style={{ marginTop: 15, opacity: 0.85 }}>
+            {renderSparkline()}
+          </div>
+        </Card>
+      )}
+
       <Dropzone
         title={
           !autoOpenCreateUploadModal && files.length > 0

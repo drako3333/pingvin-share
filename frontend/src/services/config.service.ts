@@ -1,4 +1,3 @@
-import axios from "axios";
 import Config, { AdminConfig, UpdateConfig } from "../types/config.type";
 import api from "./api.service";
 import { stringToTimespan } from "../utils/date.util";
@@ -43,12 +42,8 @@ const sendTestEmail = async (email: string) => {
 };
 
 const isNewReleaseAvailable = async () => {
-  const response = (
-    await axios.get(
-      "https://api.github.com/repos/stonith404/pingvin-share/releases/latest",
-    )
-  ).data;
-  return response.tag_name.replace("v", "") != process.env.VERSION;
+  // Temporarily disabled update checks
+  return false;
 };
 
 const changeLogo = async (file: File) => {
@@ -57,6 +52,26 @@ const changeLogo = async (file: File) => {
 
   await api.post("/configs/admin/logo", form);
 };
+
+const getAdminStats = async (): Promise<{
+  totalShares: number;
+  activeShares: number;
+  expiredShares: number;
+  sharesCreatedToday: number;
+  totalUsers: number;
+  totalFiles: number;
+  totalSize: number;
+  averageShareSize: number;
+  passwordProtectedShares: number;
+  totalDownloads: number;
+  downloadsToday: number;
+  diskTotal: number;
+  diskFree: number;
+  diskUsed: number;
+}> => {
+  return (await api.get("/admin/stats")).data;
+};
+
 export default {
   list,
   getByCategory,
@@ -66,4 +81,5 @@ export default {
   sendTestEmail,
   isNewReleaseAvailable,
   changeLogo,
+  getAdminStats,
 };

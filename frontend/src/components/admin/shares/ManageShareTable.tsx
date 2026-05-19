@@ -10,7 +10,8 @@ import {
 import { useClipboard } from "@mantine/hooks";
 import { useModals } from "@mantine/modals";
 import moment from "moment";
-import { TbLink, TbTrash } from "react-icons/tb";
+import Link from "next/link";
+import { TbChartBar, TbLink, TbTrash } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import useConfig from "../../../hooks/config.hook";
 import useTranslate from "../../../hooks/useTranslate.hook";
@@ -82,6 +83,16 @@ const ManageShareTable = ({
                   </td>
                   <td>
                     <Group position="right">
+                      <ActionIcon
+                        component={Link}
+                        href={`/share/${share.id}/analytics`}
+                        variant="light"
+                        color="victoria"
+                        size={25}
+                        title="Statistiques & Analyses"
+                      >
+                        <TbChartBar />
+                      </ActionIcon>
                       <ActionIcon
                         color="victoria"
                         variant="light"

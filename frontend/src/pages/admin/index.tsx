@@ -10,7 +10,14 @@ import {
 } from "@mantine/core";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { TbLink, TbRefresh, TbSettings, TbUsers } from "react-icons/tb";
+import {
+  TbChartBar,
+  TbLink,
+  TbListDetails,
+  TbRefresh,
+  TbSettings,
+  TbUsers,
+} from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import Meta from "../../components/Meta";
 import useTranslate from "../../hooks/useTranslate.hook";
@@ -47,6 +54,16 @@ const Admin = () => {
       route: "/admin/shares",
     },
     {
+      title: "Statistiques & Analyses",
+      icon: TbChartBar,
+      route: "/admin/analytics",
+    },
+    {
+      title: "Logs d'audit",
+      icon: TbListDetails,
+      route: "/admin/audit-logs",
+    },
+    {
       title: t("admin.button.config"),
       icon: TbSettings,
       route: "/admin/config/general",
@@ -75,11 +92,12 @@ const Admin = () => {
   return (
     <>
       <Meta title={t("admin.title")} />
-      <Title mb={30} order={3}>
+      <Title mb={20} order={3}>
         <FormattedMessage id="admin.title" />
       </Title>
-      <Stack justify="space-between" style={{ height: "calc(100vh - 180px)" }}>
-        <Paper withBorder p={40}>
+
+      <Stack justify="space-between">
+        <Paper withBorder p={30}>
           <Grid>
             {managementOptions.map((item) => {
               return (
@@ -91,7 +109,7 @@ const Admin = () => {
                     key={item.title}
                     className={classes.item}
                   >
-                    <item.icon color={theme.colors.victoria[8]} size={35} />
+                    <item.icon color={theme.colors.victoria[8]} size={30} />
                     <Text mt={7}>{item.title}</Text>
                   </Paper>
                 </Col>
@@ -100,7 +118,7 @@ const Admin = () => {
           </Grid>
         </Paper>
 
-        <Center>
+        <Center mt={20}>
           <Text size="xs" color="dimmed">
             <FormattedMessage id="admin.version" /> {process.env.VERSION}
           </Text>

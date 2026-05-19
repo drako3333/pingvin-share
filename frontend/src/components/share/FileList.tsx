@@ -9,8 +9,8 @@ import {
 } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { useModals } from "@mantine/modals";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { TbDownload, TbEye, TbLink } from "react-icons/tb";
+import React, { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { TbDownload, TbEye, TbLink, TbFolder, TbFolderOpen, TbFile } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import useConfig from "../../hooks/config.hook";
 import useTranslate from "../../hooks/useTranslate.hook";
@@ -21,6 +21,78 @@ import { byteToHumanSizeString } from "../../utils/fileSize.util";
 import toast from "../../utils/toast.util";
 import TableSortIcon, { TableSort } from "../core/SortIcon";
 import showFilePreviewModal from "./modals/showFilePreviewModal";
+
+interface TreeFileNode {
+  type: "file";
+  name: string;
+  fullName: string;
+  file: FileMetaData;
+}
+
+interface TreeFolderNode {
+  type: "folder";
+  name: string;
+  fullName: string;
+  children: (TreeFileNode | TreeFolderNode)[];
+}
+
+type TreeNode = TreeFileNode | TreeFolderNode;
+
+function buildTree(files: FileMetaData[]): TreeNode[] {
+  const root: TreeFolderNode = { type: "folder", name: "", fullName: "", children: [] };
+
+  for (const file of files) {
+    const parts = file.name.split("/");
+    let current = root;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+
+      if (isLast) {
+        current.children.push({
+          type: "file",
+          name: part,
+          fullName: file.name,
+          file: file,
+        });
+      } else {
+        let folder = current.children.find(
+          (child) => child.type === "folder" && child.name === part
+        ) as TreeFolderNode;
+
+        if (!folder) {
+          const nestedFullName = current.fullName ? `${current.fullName}/${part}` : part;
+          folder = {
+            type: "folder",
+            name: part,
+            fullName: nestedFullName,
+            children: [],
+          };
+          current.children.push(folder);
+        }
+        current = folder;
+      }
+    }
+  }
+
+  const sortNode = (nodes: TreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === "folder" ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
+    });
+    for (const node of nodes) {
+      if (node.type === "folder") {
+        sortNode(node.children);
+      }
+    }
+  };
+
+  sortNode(root.children);
+  return root.children;
+}
 
 const FileList = ({
   files,
@@ -38,6 +110,7 @@ const FileList = ({
   const modals = useModals();
   const t = useTranslate();
 
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [sort, setSort] = useState<TableSort>({
     property: "name",
     direction: "desc",
@@ -86,6 +159,104 @@ const FileList = ({
 
   useEffect(sortFiles, [sort]);
 
+  const treeData = files ? buildTree(files) : [];
+
+  const renderRows = (nodes: TreeNode[], depth = 0): React.ReactNode[] => {
+    let rows: React.ReactNode[] = [];
+
+    for (const node of nodes) {
+      if (node.type === "folder") {
+        const isExpanded = expanded[node.fullName] !== false; // Expanded by default
+        const toggleExpand = () => {
+          setExpanded(prev => ({ ...prev, [node.fullName]: !isExpanded }));
+        };
+
+        const getFolderSize = (n: TreeFolderNode): number => {
+          let sum = 0;
+          for (const child of n.children) {
+            if (child.type === "file") {
+              sum += parseInt(child.file.size);
+            } else {
+              sum += getFolderSize(child);
+            }
+          }
+          return sum;
+        };
+        const folderSize = getFolderSize(node);
+
+        rows.push(
+          <tr
+            key={node.fullName}
+            onClick={toggleExpand}
+            style={{ cursor: "pointer", background: "rgba(0,0,0,0.01)" }}
+          >
+            <td>
+              <Group spacing="xs" style={{ paddingLeft: depth * 20 }}>
+                {isExpanded ? <TbFolderOpen size={20} style={{ color: "#228be6" }} /> : <TbFolder size={20} style={{ color: "#228be6" }} />}
+                <span style={{ fontWeight: 600 }}>{node.name}</span>
+              </Group>
+            </td>
+            <td>
+              <span style={{ color: "gray", fontSize: "0.85rem" }}>
+                {byteToHumanSizeString(folderSize)}
+              </span>
+            </td>
+            <td></td>
+          </tr>
+        );
+
+        if (isExpanded) {
+          rows = rows.concat(renderRows(node.children, depth + 1));
+        }
+      } else {
+        const file = node.file;
+        rows.push(
+          <tr key={node.fullName}>
+            <td>
+              <Group spacing="xs" style={{ paddingLeft: depth * 20 }}>
+                <TbFile size={18} style={{ color: "gray" }} />
+                <span>{node.name}</span>
+              </Group>
+            </td>
+            <td>{byteToHumanSizeString(parseInt(file.size))}</td>
+            <td>
+              <Group position="right">
+                {shareService.doesFileSupportPreview(file.name) && (
+                  <ActionIcon
+                    onClick={() =>
+                      showFilePreviewModal(share.id, file, modals)
+                    }
+                    size={25}
+                  >
+                    <TbEye />
+                  </ActionIcon>
+                )}
+                {!share.hasPassword && (
+                  <ActionIcon
+                    size={25}
+                    onClick={() => copyFileLink(file)}
+                  >
+                    <TbLink />
+                  </ActionIcon>
+                )}
+                <ActionIcon
+                  size={25}
+                  onClick={async () => {
+                    await shareService.downloadFile(share.id, file.id);
+                  }}
+                >
+                  <TbDownload />
+                </ActionIcon>
+              </Group>
+            </td>
+          </tr>
+        );
+      }
+    }
+
+    return rows;
+  };
+
   return (
     <Box sx={{ display: "block", overflowX: "auto" }}>
       <Table>
@@ -107,44 +278,7 @@ const FileList = ({
           </tr>
         </thead>
         <tbody>
-          {isLoading
-            ? skeletonRows
-            : files!.map((file) => (
-                <tr key={file.name}>
-                  <td>{file.name}</td>
-                  <td>{byteToHumanSizeString(parseInt(file.size))}</td>
-                  <td>
-                    <Group position="right">
-                      {shareService.doesFileSupportPreview(file.name) && (
-                        <ActionIcon
-                          onClick={() =>
-                            showFilePreviewModal(share.id, file, modals)
-                          }
-                          size={25}
-                        >
-                          <TbEye />
-                        </ActionIcon>
-                      )}
-                      {!share.hasPassword && (
-                        <ActionIcon
-                          size={25}
-                          onClick={() => copyFileLink(file)}
-                        >
-                          <TbLink />
-                        </ActionIcon>
-                      )}
-                      <ActionIcon
-                        size={25}
-                        onClick={async () => {
-                          await shareService.downloadFile(share.id, file.id);
-                        }}
-                      >
-                        <TbDownload />
-                      </ActionIcon>
-                    </Group>
-                  </td>
-                </tr>
-              ))}
+          {isLoading ? skeletonRows : renderRows(treeData)}
         </tbody>
       </Table>
     </Box>

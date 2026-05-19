@@ -29,12 +29,19 @@ import { ShareOwnerGuard } from "./guard/shareOwner.guard";
 import { ShareSecurityGuard } from "./guard/shareSecurity.guard";
 import { ShareTokenSecurity } from "./guard/shareTokenSecurity.guard";
 import { ShareService } from "./share.service";
+import { ShareAnalyticsService } from "./share-analytics.service";
 import { CompletedShareDTO } from "./dto/shareComplete.dto";
+import { AuditLogService } from "src/audit/audit.service";
+import { NotificationService } from "src/notification/notification.service";
+
 @Controller("shares")
 export class ShareController {
   constructor(
     private shareService: ShareService,
     private jwtService: JwtService,
+    private auditLogService: AuditLogService,
+    private notificationService: NotificationService,
+    private shareAnalyticsService: ShareAnalyticsService,
   ) {}
 
   @Get("all")
@@ -87,9 +94,27 @@ export class ShareController {
   @UseGuards(CreateShareGuard, ShareOwnerGuard)
   async complete(@Param("id") id: string, @Req() request: Request) {
     const { reverse_share_token } = request.cookies;
-    return new CompletedShareDTO().from(
-      await this.shareService.complete(id, reverse_share_token),
+    const share = await this.shareService.complete(id, reverse_share_token);
+
+    const ip = request.ip;
+    const creatorUser = request["user"] as User;
+    const username = creatorUser?.username || "Anonyme";
+    const userId = creatorUser?.id || undefined;
+
+    await this.auditLogService.create(
+      "PARTAGE_CREE",
+      ip,
+      { shareId: id, filesCount: share.files?.length || 0 },
+      userId,
+      username,
     );
+
+    await this.notificationService.sendWebhook(
+      `Le partage *${id}* contenant ${share.files?.length || 0} fichier(s) a été créé avec succès par *${username}*.`,
+      "Nouveau Partage Créé",
+    );
+
+    return new CompletedShareDTO().from(share as any);
   }
 
   @Delete(":id/complete")
@@ -100,9 +125,26 @@ export class ShareController {
 
   @Delete(":id")
   @UseGuards(ShareOwnerGuard)
-  async remove(@Param("id") id: string, @GetUser() user: User) {
+  async remove(@Param("id") id: string, @GetUser() user: User, @Req() request: Request) {
     const isDeleterAdmin = user?.isAdmin === true;
     await this.shareService.remove(id, isDeleterAdmin);
+
+    const ip = request.ip;
+    const username = user?.username || "Anonyme";
+    const userId = user?.id || undefined;
+
+    await this.auditLogService.create(
+      "PARTAGE_SUPPRIME",
+      ip,
+      { shareId: id },
+      userId,
+      username,
+    );
+
+    await this.notificationService.sendWebhook(
+      `Le partage *${id}* a été supprimé par *${username}*.`,
+      "Partage Supprimé",
+    );
   }
 
   @Throttle({
@@ -140,6 +182,24 @@ export class ShareController {
     });
 
     return { token };
+  }
+
+  @Get(":id/qrcode")
+  @UseGuards(ShareSecurityGuard)
+  async getQrCode(
+    @Param("id") id: string,
+    @Res() response: Response,
+  ) {
+    const qrCodeSvg = await this.shareService.getQrCode(id);
+    response.setHeader("Content-Type", "image/svg+xml");
+    response.setHeader("Content-Disposition", `inline; filename="qrcode-${id}.svg"`);
+    response.send(qrCodeSvg);
+  }
+
+  @Get(":id/analytics")
+  @UseGuards(ShareOwnerGuard)
+  async getAnalytics(@Param("id") id: string) {
+    return this.shareAnalyticsService.getForShare(id);
   }
 
   /**

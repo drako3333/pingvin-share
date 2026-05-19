@@ -7,14 +7,14 @@ const IMAGES_PATH = "../frontend/public/img";
 @Injectable()
 export class LogoService {
   async create(file: Buffer) {
-    const resized = await sharp(file).resize(900).toBuffer();
+    const resized = await sharp(file).resize(900).png().toBuffer();
     fs.writeFileSync(`${IMAGES_PATH}/logo.png`, resized, "binary");
     this.createFavicon(file);
     this.createPWAIcons(file);
   }
 
   async createFavicon(file: Buffer) {
-    const resized = await sharp(file).resize(16).toBuffer();
+    const resized = await sharp(file).resize(16).png().toBuffer();
     fs.promises.writeFile(`${IMAGES_PATH}/favicon.ico`, resized, "binary");
   }
 
@@ -22,7 +22,7 @@ export class LogoService {
     const sizes = [48, 72, 96, 128, 144, 152, 192, 384, 512];
 
     for (const size of sizes) {
-      const resized = await sharp(file).resize(size).toBuffer();
+      const resized = await sharp(file).resize(size).png().toBuffer();
       fs.promises.writeFile(
         `${IMAGES_PATH}/icons/icon-${size}x${size}.png`,
         resized,
