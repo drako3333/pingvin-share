@@ -61,6 +61,38 @@ const isShareIdAvailable = async (id: string): Promise<boolean> => {
 };
 
 const doesFileSupportPreview = (fileName: string) => {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (ext) {
+    const codeExts = [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "py",
+      "rs",
+      "go",
+      "cpp",
+      "c",
+      "h",
+      "cs",
+      "html",
+      "css",
+      "scss",
+      "sh",
+      "yml",
+      "yaml",
+      "xml",
+      "sql",
+      "md",
+      "txt",
+      "ini",
+      "conf",
+      "env",
+    ];
+    if (codeExts.includes(ext)) return true;
+  }
+
   const mimeType = (mime.contentType(fileName) || "").split(";")[0];
 
   if (!mimeType) return false;
@@ -71,6 +103,8 @@ const doesFileSupportPreview = (fileName: string) => {
     mimeType.startsWith("audio/"),
     mimeType.startsWith("text/"),
     mimeType == "application/pdf",
+    mimeType == "application/json",
+    mimeType == "application/javascript",
   ];
 
   return supportedMimeTypes.some((isSupported) => isSupported);

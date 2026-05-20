@@ -222,7 +222,7 @@ const FileList = ({
                 {shareService.doesFileSupportPreview(file.name) && (
                   <ActionIcon
                     onClick={() =>
-                      showFilePreviewModal(share.id, file, modals)
+                      showFilePreviewModal(share.id, files || [], file.id, modals)
                     }
                     size={25}
                   >

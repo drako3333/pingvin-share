@@ -1,19 +1,24 @@
 import { ModalsContextProps } from "@mantine/modals/lib/context";
-import mime from "mime-types";
 import { FileMetaData } from "../../../types/File.type";
 import FilePreview from "../FilePreview";
 
 const showFilePreviewModal = (
   shareId: string,
-  file: FileMetaData,
+  files: FileMetaData[],
+  initialFileId: string,
   modals: ModalsContextProps,
 ) => {
-  const mimeType = (mime.contentType(file.name) || "").split(";")[0];
   return modals.openModal({
-    size: "xl",
-    title: file.name,
+    size: "85vw",
+    styles: {
+      content: {
+        maxWidth: "1200px",
+        width: "85vw",
+      },
+    },
+    withCloseButton: true,
     children: (
-      <FilePreview shareId={shareId} fileId={file.id} mimeType={mimeType} />
+      <FilePreview shareId={shareId} files={files} initialFileId={initialFileId} />
     ),
   });
 };
