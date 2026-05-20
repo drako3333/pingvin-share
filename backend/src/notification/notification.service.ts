@@ -5,7 +5,7 @@ import { ConfigService } from "src/config/config.service";
 export class NotificationService {
   constructor(private configService: ConfigService) {}
 
-  async sendWebhook(message: string, title = "Pingvin Share") {
+  async sendWebhook(message: string, title = "Ustrohosting Share") {
     const discordUrl = this.configService.get("share.webhookDiscord");
     const slackUrl = this.configService.get("share.webhookSlack");
     const telegramToken = this.configService.get("share.webhookTelegramToken");
@@ -18,7 +18,7 @@ export class NotificationService {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            username: "Pingvin Share Bot",
+            username: "Ustrohosting Share",
             embeds: [
               {
                 title: title,

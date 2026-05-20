@@ -45,6 +45,7 @@ const showCreateUploadModal = (
     simplified: boolean;
   },
   files: FileUpload[],
+  // eslint-disable-next-line no-unused-vars
   uploadCallback: (createShare: CreateShare, files: FileUpload[]) => void,
 ) => {
   const t = translateOutsideContext();
@@ -107,6 +108,7 @@ const CreateUploadModalBody = ({
   options,
 }: {
   files: FileUpload[];
+  // eslint-disable-next-line no-unused-vars
   uploadCallback: (createShare: CreateShare, files: FileUpload[]) => void;
   options: {
     isUserSignedIn: boolean;
@@ -476,6 +478,7 @@ const SimplifiedCreateUploadModalModal = ({
   options,
 }: {
   files: FileUpload[];
+  // eslint-disable-next-line no-unused-vars
   uploadCallback: (createShare: CreateShare, files: FileUpload[]) => void;
   options: {
     isUserSignedIn: boolean;

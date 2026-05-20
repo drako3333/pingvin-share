@@ -1,8 +1,11 @@
+// Polyfill: SlowBuffer was removed in Node 25.0.0
+// safe-buffer@5.2.1 (used by jsonwebtoken, express, archiver) still references it.
+// Official migration: SlowBuffer(size) → Buffer.allocUnsafeSlow(size)
 import * as bufferModule from "buffer";
 if (!(bufferModule as any).SlowBuffer) {
-  const Dummy = class {};
-  (Dummy.prototype as any).equal = () => false;
-  (bufferModule as any).SlowBuffer = Dummy;
+  (bufferModule as any).SlowBuffer = function SlowBuffer(size: number) {
+    return Buffer.allocUnsafeSlow(size);
+  };
 }
 if (typeof (global as any).SlowBuffer === "undefined") {
   (global as any).SlowBuffer = (bufferModule as any).SlowBuffer;
@@ -77,7 +80,7 @@ async function bootstrap() {
   // Setup Swagger in development mode
   if (process.env.NODE_ENV == "development") {
     const config = new DocumentBuilder()
-      .setTitle("Pingvin Share API")
+      .setTitle("Ustrohosting Share API")
       .setVersion("1.0")
       .build();
     const document = SwaggerModule.createDocument(app, config);

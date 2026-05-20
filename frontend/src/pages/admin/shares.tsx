@@ -105,7 +105,7 @@ const Shares = () => {
             compact
             mb={10}
           >
-            Retour à l'administration
+            <FormattedMessage id="analytics.back-to-admin" />
           </Button>
           <Title mb={20} order={3}>
             <FormattedMessage id="admin.shares.title" />
@@ -120,7 +120,7 @@ const Shares = () => {
             <Group position="apart">
               <div>
                 <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Partages Totaux
+                  <FormattedMessage id="analytics.shares.totals" />
                 </Text>
                 <Title order={3} mt={5}>
                   {totalShares}
@@ -138,7 +138,7 @@ const Shares = () => {
             <Group position="apart">
               <div>
                 <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Visiteurs Totaux
+                  <FormattedMessage id="analytics.shares.views" />
                 </Text>
                 <Title order={3} mt={5}>
                   {totalViews}
@@ -156,7 +156,7 @@ const Shares = () => {
             <Group position="apart">
               <div>
                 <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Taille Totale
+                  <FormattedMessage id="analytics.shares.totalsize" />
                 </Text>
                 <Title order={3} mt={5}>
                   {byteToHumanSizeString(totalSize)}
@@ -174,7 +174,7 @@ const Shares = () => {
             <Group position="apart">
               <div>
                 <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
-                  Taille Moyenne
+                  <FormattedMessage id="analytics.shares.averagesize" />
                 </Text>
                 <Title order={3} mt={5}>
                   {byteToHumanSizeString(averageSize)}

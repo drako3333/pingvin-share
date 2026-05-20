@@ -17,12 +17,13 @@ import { useEffect, useState } from "react";
 import {
   TbArrowLeft,
   TbDatabase,
-  TbDownload,
   TbLink,
   TbUsers,
 } from "react-icons/tb";
+import { FormattedMessage } from "react-intl";
 import Meta from "../../components/Meta";
 import configService from "../../services/config.service";
+import useTranslate from "../../hooks/useTranslate.hook";
 import { byteToHumanSizeString } from "../../utils/fileSize.util";
 
 interface AdminStats {
@@ -44,6 +45,7 @@ interface AdminStats {
 
 const AdminAnalytics = () => {
   const theme = useMantineTheme();
+  const t = useTranslate();
   const [stats, setStats] = useState<AdminStats | null>(null);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ const AdminAnalytics = () => {
 
   return (
     <>
-      <Meta title="Statistiques & Analyses" />
+      <Meta title={t("analytics.title")} />
 
       <Group position="apart" mb={20} align="center">
         <div>
@@ -75,11 +77,13 @@ const AdminAnalytics = () => {
             compact
             mb={10}
           >
-            Retour à l'administration
+            <FormattedMessage id="analytics.back-to-admin" />
           </Button>
-          <Title order={3}>Statistiques & Analyses</Title>
+          <Title order={3}>
+            <FormattedMessage id="analytics.title" />
+          </Title>
           <Text size="sm" color="dimmed">
-            Vue d'ensemble de l'activité de la plateforme, du stockage et du trafic.
+            <FormattedMessage id="analytics.subtitle" />
           </Text>
         </div>
       </Group>
@@ -90,18 +94,25 @@ const AdminAnalytics = () => {
           <Paper withBorder p="xl" radius="lg" style={{ background: "rgba(255,255,255,0.01)" }}>
             <Group position="apart" mb="xs">
               <div>
-                <Text size="sm" weight={700}>Stockage Disque du Système</Text>
-                <Text size="xs" color="dimmed">Capacité physique de la partition de données</Text>
+                <Text size="sm" weight={700}>
+                  <FormattedMessage id="analytics.disk.title" />
+                </Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.disk.subtitle" />
+                </Text>
               </div>
               <Text size="sm" weight={700} color="teal">
-                {Math.round((stats.diskFree / stats.diskTotal) * 100)}% Libre
+                <FormattedMessage
+                  id="analytics.disk.free"
+                  values={{ percentage: Math.round((stats.diskFree / stats.diskTotal) * 100) }}
+                />
               </Text>
             </Group>
 
             <Progress
               sections={[
-                { value: (stats.diskUsed / stats.diskTotal) * 100, color: "blue", label: "Utilisé" },
-                { value: (stats.diskFree / stats.diskTotal) * 100, color: "teal", label: "Libre" },
+                { value: (stats.diskUsed / stats.diskTotal) * 100, color: "blue", label: t("analytics.disk.used-label") },
+                { value: (stats.diskFree / stats.diskTotal) * 100, color: "teal", label: t("analytics.disk.free-label") },
               ]}
               size="xl"
               radius="xl"
@@ -112,15 +123,21 @@ const AdminAnalytics = () => {
 
             <Grid>
               <Col span={4}>
-                <Text size="xs" color="dimmed">Espace total</Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.disk.total-space" />
+                </Text>
                 <Text size="md" weight={700}>{byteToHumanSizeString(stats.diskTotal)}</Text>
               </Col>
               <Col span={4}>
-                <Text size="xs" color="dimmed">Espace utilisé</Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.disk.used-space" />
+                </Text>
                 <Text size="md" weight={700} color="blue">{byteToHumanSizeString(stats.diskUsed)}</Text>
               </Col>
               <Col span={4}>
-                <Text size="xs" color="dimmed">Espace libre</Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.disk.free-space" />
+                </Text>
                 <Text size="md" weight={700} color="teal">{byteToHumanSizeString(stats.diskFree)}</Text>
               </Col>
             </Grid>
@@ -129,11 +146,15 @@ const AdminAnalytics = () => {
           <Paper withBorder p="xl" radius="lg" style={{ background: "rgba(255,255,255,0.01)" }}>
             <Group position="apart" mb="xs">
               <div>
-                <Text size="sm" weight={700}>Volume de Stockage des Fichiers</Text>
-                <Text size="xs" color="dimmed">Espace disque total consommé par les fichiers du site</Text>
+                <Text size="sm" weight={700}>
+                  <FormattedMessage id="analytics.storage.title" />
+                </Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.storage.subtitle" />
+                </Text>
               </div>
               <Text size="sm" weight={700} color="indigo">
-                {stats.totalFiles} Fichiers
+                <FormattedMessage id="analytics.storage.files" values={{ count: stats.totalFiles }} />
               </Text>
             </Group>
 
@@ -149,11 +170,15 @@ const AdminAnalytics = () => {
 
             <Grid>
               <Col span={6}>
-                <Text size="xs" color="dimmed">Espace consommé par les partages</Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.storage.consumed" />
+                </Text>
                 <Text size="md" weight={700} color="indigo">{byteToHumanSizeString(stats.totalSize)}</Text>
               </Col>
               <Col span={6}>
-                <Text size="xs" color="dimmed">Taille moyenne d'un partage</Text>
+                <Text size="xs" color="dimmed">
+                  <FormattedMessage id="analytics.storage.average" />
+                </Text>
                 <Text size="md" weight={700}>{byteToHumanSizeString(stats.averageShareSize)}</Text>
               </Col>
             </Grid>
@@ -179,26 +204,38 @@ const AdminAnalytics = () => {
                   <TbLink size={22} />
                 </div>
                 <div>
-                  <Text size="sm" weight={700}>Hébergement & Partages</Text>
-                  <Text size="xs" color="dimmed">Vue d'ensemble des liens actifs</Text>
+                  <Text size="sm" weight={700}>
+                    <FormattedMessage id="analytics.card.hosting.title" />
+                  </Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.hosting.subtitle" />
+                  </Text>
                 </div>
               </Group>
 
               <Stack spacing="xs">
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Total des partages créés</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.hosting.total" />
+                  </Text>
                   <Text size="sm" weight={700}>{stats.totalShares}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Partages actuellement actifs</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.hosting.active" />
+                  </Text>
                   <Text size="sm" weight={700} color="teal">{stats.activeShares}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Partages ayant expiré</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.hosting.expired" />
+                  </Text>
                   <Text size="sm" weight={700} color="red">{stats.expiredShares}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Nouveaux partages aujourd'hui</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.hosting.today" />
+                  </Text>
                   <Text size="sm" weight={700} color="indigo">{stats.sharesCreatedToday}</Text>
                 </Group>
               </Stack>
@@ -222,26 +259,38 @@ const AdminAnalytics = () => {
                   <TbDatabase size={22} />
                 </div>
                 <div>
-                  <Text size="sm" weight={700}>Données & Volume</Text>
-                  <Text size="xs" color="dimmed">Poids et répartition des fichiers</Text>
+                  <Text size="sm" weight={700}>
+                    <FormattedMessage id="analytics.card.data.title" />
+                  </Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.data.subtitle" />
+                  </Text>
                 </div>
               </Group>
 
               <Stack spacing="xs">
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Fichiers totaux hébergés</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.data.total-files" />
+                  </Text>
                   <Text size="sm" weight={700}>{stats.totalFiles}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Volume total des fichiers</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.data.total-size" />
+                  </Text>
                   <Text size="sm" weight={700} color="orange">{byteToHumanSizeString(stats.totalSize)}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Taille moyenne par partage</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.data.average-size" />
+                  </Text>
                   <Text size="sm" weight={700}>{byteToHumanSizeString(stats.averageShareSize)}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Partages sécurisés (Password)</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.data.password" />
+                  </Text>
                   <Text size="sm" weight={700} color="blue">{stats.passwordProtectedShares}</Text>
                 </Group>
               </Stack>
@@ -265,28 +314,45 @@ const AdminAnalytics = () => {
                   <TbUsers size={22} />
                 </div>
                 <div>
-                  <Text size="sm" weight={700}>Membres & Trafic</Text>
-                  <Text size="xs" color="dimmed">Tendance d'utilisation et visites</Text>
+                  <Text size="sm" weight={700}>
+                    <FormattedMessage id="analytics.card.members.title" />
+                  </Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.members.subtitle" />
+                  </Text>
                 </div>
               </Group>
 
               <Stack spacing="xs">
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Utilisateurs inscrits</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.members.users" />
+                  </Text>
                   <Text size="sm" weight={700}>{stats.totalUsers}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Téléchargements totaux</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.members.downloads" />
+                  </Text>
                   <Text size="sm" weight={700} color="green">{stats.totalDownloads}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Téléchargements aujourd'hui</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.members.downloads-today" />
+                  </Text>
                   <Text size="sm" weight={700} color="teal">{stats.downloadsToday}</Text>
                 </Group>
                 <Group position="apart">
-                  <Text size="xs" color="dimmed">Ratio de téléchargement</Text>
+                  <Text size="xs" color="dimmed">
+                    <FormattedMessage id="analytics.card.members.ratio" />
+                  </Text>
                   <Text size="sm" weight={700}>
-                    {stats.totalShares > 0 ? (stats.totalDownloads / stats.totalShares).toFixed(1) : 0} par partage
+                    <FormattedMessage
+                      id="analytics.card.members.ratio-value"
+                      values={{
+                        ratio: stats.totalShares > 0 ? (stats.totalDownloads / stats.totalShares).toFixed(1) : 0
+                      }}
+                    />
                   </Text>
                 </Group>
               </Stack>

@@ -15,9 +15,9 @@ const Meta = ({
   return (
     <Head>
       <title>{metaTitle}</title>
-      <meta name="og:title" content={metaTitle} />
+      <meta property="og:title" content={metaTitle} />
       <meta
-        name="og:description"
+        property="og:description"
         content={
           description ?? "Your premium, fast, and secure sharing platform."
         }

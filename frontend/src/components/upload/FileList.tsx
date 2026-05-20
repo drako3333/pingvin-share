@@ -68,6 +68,7 @@ const FileList = <T extends FileListItem = FileListItem>({
   setFiles,
 }: {
   files: T[];
+  // eslint-disable-next-line no-unused-vars
   setFiles: (files: T[]) => void;
 }) => {
   const remove = (index: number) => {

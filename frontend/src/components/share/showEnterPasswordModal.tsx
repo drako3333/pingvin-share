@@ -8,6 +8,7 @@ import useTranslate, {
 
 const showEnterPasswordModal = (
   modals: ModalsContextProps,
+  // eslint-disable-next-line no-unused-vars
   submitCallback: (password: string) => Promise<void>,
 ) => {
   const t = translateOutsideContext();
@@ -23,6 +24,7 @@ const showEnterPasswordModal = (
 const Body = ({
   submitCallback,
 }: {
+  // eslint-disable-next-line no-unused-vars
   submitCallback: (password: string) => Promise<void>;
 }) => {
   const [password, setPassword] = useState("");

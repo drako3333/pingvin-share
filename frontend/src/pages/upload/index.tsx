@@ -1,11 +1,10 @@
-import { Button, Card, Center, Group, Text } from "@mantine/core";
+import { Button, Card, Group, Text, useMantineTheme } from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { cleanNotifications } from "@mantine/notifications";
 import { AxiosError } from "axios";
 import pLimit from "p-limit";
 import { useEffect, useRef, useState } from "react";
 import { FormattedMessage } from "react-intl";
-import { TbDownload } from "react-icons/tb";
 import Meta from "../../components/Meta";
 import Dropzone from "../../components/upload/Dropzone";
 import FileList from "../../components/upload/FileList";
@@ -18,12 +17,11 @@ import useUser from "../../hooks/user.hook";
 import shareService from "../../services/share.service";
 import { FileUpload } from "../../types/File.type";
 import { CreateShare, Share } from "../../types/share.type";
+import { byteToHumanSizeString } from "../../utils/fileSize.util";
 import toast from "../../utils/toast.util";
 import { useRouter } from "next/router";
 
 const promiseLimit = pLimit(3);
-let errorToastShown = false;
-let createdShare: Share;
 
 const Upload = ({
   maxShareSize,
@@ -37,6 +35,8 @@ const Upload = ({
   const modals = useModals();
   const router = useRouter();
   const t = useTranslate();
+  const theme = useMantineTheme();
+  const isDark = theme.colorScheme === "dark";
 
   const { user } = useUser();
   const config = useConfig();
@@ -48,6 +48,8 @@ const Upload = ({
   const [speedHistory, setSpeedHistory] = useState<number[]>([]);
   const bytesUploadedRef = useRef<Record<number, number>>({});
   const lastBytesRef = useRef(0);
+  const errorToastShownRef = useRef(false);
+  const createdShareRef = useRef<Share | null>(null);
 
   useConfirmLeave({
     message: t("upload.notify.confirm-leave"),
@@ -99,24 +101,63 @@ const Upload = ({
           );
 
         if (filesMatch) {
-          modals.openConfirmModal({
-            title: "Reprendre le téléversement ?",
-            children: "Un téléversement précédent a été interrompu. Souhaitez-vous reprendre là où il s'était arrêté ?",
-            labels: { confirm: "Oui, reprendre", cancel: "Non, recommencer" },
-            onConfirm: () => {
-              const restoredFiles = files.map((f, idx) => {
-                const savedProgress = localStorage.getItem(
-                  `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
-                );
-                f.uploadingProgress = savedProgress ? parseFloat(savedProgress) : 0;
-                return f;
-              });
-              setFiles(restoredFiles);
-              uploadFiles({} as any, restoredFiles, pendingShare.id);
-            },
-            onCancel: () => {
+          // Verify if the share still exists on the server
+          shareService.isShareIdAvailable(pendingShare.id).then((isAvailable) => {
+            if (isAvailable) {
+              // The share ID is available, meaning the share DOES NOT exist on the server (expired/deleted).
+              // Clean up localStorage immediately.
               localStorage.removeItem("pingvin_pending_share");
-            },
+              files.forEach((_, idx) => {
+                localStorage.removeItem(`pingvin_pending_share_progress_${pendingShare.id}_${idx}`);
+              });
+            } else {
+              modals.openConfirmModal({
+                title: t("analytics.resume.title"),
+                children: t("analytics.resume.description"),
+                labels: { confirm: t("analytics.resume.confirm"), cancel: t("analytics.resume.cancel") },
+                onConfirm: () => {
+                  const restoredFiles = files.map((f, idx) => {
+                    const savedProgress = localStorage.getItem(
+                      `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                    );
+                    f.uploadingProgress = savedProgress ? parseFloat(savedProgress) : 0;
+                    return f;
+                  });
+                  setFiles(restoredFiles);
+                  uploadFiles({} as any, restoredFiles, pendingShare.id);
+                },
+                onCancel: () => {
+                  localStorage.removeItem("pingvin_pending_share");
+                  files.forEach((_, idx) => {
+                    localStorage.removeItem(`pingvin_pending_share_progress_${pendingShare.id}_${idx}`);
+                  });
+                },
+              });
+            }
+          }).catch(() => {
+            // Offline/error fallback: show resume prompt
+            modals.openConfirmModal({
+              title: t("analytics.resume.title"),
+              children: t("analytics.resume.description"),
+              labels: { confirm: t("analytics.resume.confirm"), cancel: t("analytics.resume.cancel") },
+              onConfirm: () => {
+                const restoredFiles = files.map((f, idx) => {
+                  const savedProgress = localStorage.getItem(
+                    `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                  );
+                  f.uploadingProgress = savedProgress ? parseFloat(savedProgress) : 0;
+                  return f;
+                });
+                setFiles(restoredFiles);
+                uploadFiles({} as any, restoredFiles, pendingShare.id);
+              },
+              onCancel: () => {
+                localStorage.removeItem("pingvin_pending_share");
+                files.forEach((_, idx) => {
+                  localStorage.removeItem(`pingvin_pending_share_progress_${pendingShare.id}_${idx}`);
+                });
+              },
+            });
           });
         }
       }
@@ -129,16 +170,16 @@ const Upload = ({
     try {
       const isReverseShare = router.pathname != "/upload";
       if (existingShareId) {
-        createdShare = { id: existingShareId } as any;
+        createdShareRef.current = { id: existingShareId } as any;
       } else {
-        createdShare = await shareService.create(share, isReverseShare);
+        createdShareRef.current = await shareService.create(share, isReverseShare);
       }
 
       // Save upload states to localStorage
       localStorage.setItem(
         "pingvin_pending_share",
         JSON.stringify({
-          id: createdShare.id,
+          id: createdShareRef.current!.id,
           files: files.map((f) => ({ name: f.name, size: f.size })),
         }),
       );
@@ -163,13 +204,13 @@ const Upload = ({
           );
           // Persist progress per file
           localStorage.setItem(
-            `pingvin_pending_share_progress_${createdShare.id}_${fileIndex}`,
+            `pingvin_pending_share_progress_${createdShareRef.current!.id}_${fileIndex}`,
             String(progress),
           );
         };
 
         const currentSavedProgress = parseFloat(
-          localStorage.getItem(`pingvin_pending_share_progress_${createdShare.id}_${fileIndex}`) || "0",
+          localStorage.getItem(`pingvin_pending_share_progress_${createdShareRef.current!.id}_${fileIndex}`) || "0",
         );
 
         let chunks = Math.ceil(file.size / chunkSize.current);
@@ -193,7 +234,7 @@ const Upload = ({
           try {
             await shareService
               .uploadFile(
-                createdShare.id,
+                createdShareRef.current!.id,
                 blob,
                 {
                   id: fileId,
@@ -227,7 +268,7 @@ const Upload = ({
       }),
     );
 
-    Promise.all(fileUploadPromises);
+    await Promise.all(fileUploadPromises);
   };
 
   const showCreateUploadModalCallback = (files: FileUpload[]) => {
@@ -264,7 +305,7 @@ const Upload = ({
     ).length;
 
     if (fileErrorCount > 0) {
-      if (!errorToastShown) {
+      if (!errorToastShownRef.current) {
         toast.error(
           t("upload.notify.count-failed", { count: fileErrorCount }),
           {
@@ -273,19 +314,20 @@ const Upload = ({
           },
         );
       }
-      errorToastShown = true;
+      errorToastShownRef.current = true;
     } else {
       cleanNotifications();
-      errorToastShown = false;
+      errorToastShownRef.current = false;
     }
 
     if (
       files.length > 0 &&
       files.every((file) => file.uploadingProgress >= 100) &&
-      fileErrorCount == 0
+      fileErrorCount == 0 &&
+      createdShareRef.current
     ) {
       shareService
-        .completeShare(createdShare.id)
+        .completeShare(createdShareRef.current.id)
         .then((share) => {
           setisUploading(false);
           showCompletedUploadModal(modals, share);
@@ -293,7 +335,7 @@ const Upload = ({
           // Clean localStorage keys
           localStorage.removeItem("pingvin_pending_share");
           files.forEach((_, idx) => {
-            localStorage.removeItem(`pingvin_pending_share_progress_${createdShare.id}_${idx}`);
+            localStorage.removeItem(`pingvin_pending_share_progress_${createdShareRef.current!.id}_${idx}`);
           });
         })
         .catch(() => toast.error(t("upload.notify.generic-error")));
@@ -340,14 +382,6 @@ const Upload = ({
   const remainingBytes = Math.max(0, totalFilesSize - totalUploaded);
   const etaSeconds = currentSpeed > 0 ? remainingBytes / currentSpeed : 0;
 
-  const byteToHumanSizeString = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
   return (
     <>
       <Meta title={t("upload.title")} />
@@ -370,14 +404,14 @@ const Upload = ({
           withBorder
           style={{
             backdropFilter: "blur(8px)",
-            background: "rgba(255,255,255,0.75)",
-            borderColor: "rgba(0,0,0,0.06)",
+            background: isDark ? "rgba(26, 27, 30, 0.75)" : "rgba(255, 255, 255, 0.75)",
+            borderColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
           }}
         >
           <Group position="apart" align="center">
             <div>
               <Text size="xs" color="dimmed" weight={600} transform="uppercase" style={{ letterSpacing: "0.05em" }}>
-                Vitesse de téléversement
+                {t("analytics.upload-speed")}
               </Text>
               <Text size="xl" weight={800} color="blue">
                 {byteToHumanSizeString(currentSpeed)}/s
@@ -385,7 +419,7 @@ const Upload = ({
             </div>
             <div>
               <Text size="xs" color="dimmed" weight={600} transform="uppercase" style={{ letterSpacing: "0.05em" }}>
-                Temps restant
+                {t("analytics.time-remaining")}
               </Text>
               <Text size="xl" weight={800}>
                 {formatSeconds(etaSeconds)}

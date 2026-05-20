@@ -12,14 +12,12 @@ import {
   Center,
 } from "@mantine/core";
 import {
-  TbArrowLeft
+  TbArrowLeft,
+  TbSearch
 } from "react-icons/tb";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FormattedMessage } from "react-intl";
-import { TbSearch } from "react-icons/tb";
 import Meta from "../../components/Meta";
-import useTranslate from "../../hooks/useTranslate.hook";
 import auditService, { AuditLog } from "../../services/audit.service";
 import moment from "moment";
 
@@ -27,7 +25,6 @@ const AuditLogs = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const t = useTranslate();
 
   useEffect(() => {
     setIsLoading(true);

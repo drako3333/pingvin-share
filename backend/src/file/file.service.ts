@@ -50,28 +50,27 @@ export class FileService {
   }
 
   async remove(shareId: string, fileId: string) {
-    const storageService = this.getStorageService();
+    const share = await this.prisma.share.findFirst({
+      where: { id: shareId },
+    });
+    const storageService = this.getStorageService(share?.storageProvider);
     return storageService.remove(shareId, fileId);
   }
 
   async deleteAllFiles(shareId: string) {
-    const storageService = this.getStorageService();
+    const share = await this.prisma.share.findFirst({
+      where: { id: shareId },
+    });
+    const storageService = this.getStorageService(share?.storageProvider);
     return storageService.deleteAllFiles(shareId);
   }
 
   async getZip(shareId: string): Promise<Readable> {
-    const storageService = this.getStorageService();
-    return await storageService.getZip(shareId);
-  }
-
-  private async streamToUint8Array(stream: Readable): Promise<Uint8Array> {
-    const chunks: Buffer[] = [];
-
-    return new Promise((resolve, reject) => {
-      stream.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-      stream.on("end", () => resolve(new Uint8Array(Buffer.concat(chunks))));
-      stream.on("error", reject);
+    const share = await this.prisma.share.findFirst({
+      where: { id: shareId },
     });
+    const storageService = this.getStorageService(share?.storageProvider);
+    return await storageService.getZip(shareId);
   }
 }
 

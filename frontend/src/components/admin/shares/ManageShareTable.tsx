@@ -13,7 +13,6 @@ import moment from "moment";
 import Link from "next/link";
 import { TbChartBar, TbLink, TbTrash } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
-import useConfig from "../../../hooks/config.hook";
 import useTranslate from "../../../hooks/useTranslate.hook";
 import { MyShare } from "../../../types/share.type";
 import { byteToHumanSizeString } from "../../../utils/fileSize.util";
@@ -26,12 +25,12 @@ const ManageShareTable = ({
   isLoading,
 }: {
   shares: MyShare[];
+  // eslint-disable-next-line no-unused-vars
   deleteShare: (share: MyShare) => void;
   isLoading: boolean;
 }) => {
   const modals = useModals();
   const clipboard = useClipboard();
-  const config = useConfig();
   const t = useTranslate();
 
   return (

@@ -30,11 +30,11 @@ export class JobsService {
     });
 
     for (const expiredShare of expiredShares) {
+      await this.fileService.deleteAllFiles(expiredShare.id);
+
       await this.prisma.share.delete({
         where: { id: expiredShare.id },
       });
-
-      await this.fileService.deleteAllFiles(expiredShare.id);
     }
 
     if (expiredShares.length > 0) {
@@ -84,29 +84,27 @@ export class JobsService {
   }
 
   @Cron("0 0 * * *")
-  deleteTemporaryFiles() {
+  async deleteTemporaryFiles() {
     let filesDeleted = 0;
 
-    const shareDirectories = fs
-      .readdirSync(SHARE_DIRECTORY, { withFileTypes: true })
+    const dirents = await fs.promises.readdir(SHARE_DIRECTORY, { withFileTypes: true });
+    const shareDirectories = dirents
       .filter((dirent) => dirent.isDirectory())
       .map((dirent) => dirent.name);
 
     for (const shareDirectory of shareDirectories) {
-      const temporaryFiles = fs
-        .readdirSync(`${SHARE_DIRECTORY}/${shareDirectory}`)
-        .filter((file) => file.endsWith(".tmp-chunk"));
+      const files = await fs.promises.readdir(`${SHARE_DIRECTORY}/${shareDirectory}`);
+      const temporaryFiles = files.filter((file) => file.endsWith(".tmp-chunk"));
 
       for (const file of temporaryFiles) {
-        const stats = fs.statSync(
-          `${SHARE_DIRECTORY}/${shareDirectory}/${file}`,
-        );
+        const filePath = `${SHARE_DIRECTORY}/${shareDirectory}/${file}`;
+        const stats = await fs.promises.stat(filePath);
         const isOlderThanOneDay = moment(stats.mtime)
           .add(1, "day")
           .isBefore(moment());
 
         if (isOlderThanOneDay) {
-          fs.rmSync(`${SHARE_DIRECTORY}/${shareDirectory}/${file}`);
+          await fs.promises.rm(filePath);
           filesDeleted++;
         }
       }
@@ -135,7 +133,9 @@ export class JobsService {
       refreshTokenCount + loginTokenCount + resetPasswordTokenCount;
 
     if (deletedTokensCount > 0) {
-      this.logger.log(`Deleted ${deletedTokensCount} expired refresh tokens`);
+      this.logger.log(
+        `Deleted ${deletedTokensCount} expired tokens (Refresh: ${refreshTokenCount}, Login: ${loginTokenCount}, ResetPassword: ${resetPasswordTokenCount})`,
+      );
     }
   }
 }

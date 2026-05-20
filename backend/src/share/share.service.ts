@@ -28,7 +28,6 @@ export class ShareService {
     private configService: ConfigService,
     private fileService: FileService,
     private emailService: EmailService,
-    private config: ConfigService,
     private jwtService: JwtService,
     private reverseShareService: ReverseShareService,
     private clamScanService: ClamScanService,
@@ -57,7 +56,7 @@ export class ShareService {
 
       const expiresNever = moment(0).toDate() == parsedExpiration;
 
-      const maxExpiration = this.config.get("share.maxExpiration");
+      const maxExpiration = this.configService.get("share.maxExpiration");
       if (
         maxExpiration.value !== 0 &&
         (expiresNever ||
@@ -72,7 +71,7 @@ export class ShareService {
       expirationDate = parsedExpiration;
     }
 
-    fs.mkdirSync(`${SHARE_DIRECTORY}/${share.id}`, {
+    await fs.promises.mkdir(`${SHARE_DIRECTORY}/${share.id}`, {
       recursive: true,
     });
 
@@ -107,13 +106,13 @@ export class ShareService {
   }
 
   async createZip(shareId: string) {
-    if (this.config.get("s3.enabled")) return;
+    if (this.configService.get("s3.enabled")) return;
 
     const path = `${SHARE_DIRECTORY}/${shareId}`;
 
     const files = await this.prisma.file.findMany({ where: { shareId } });
     const archive = archiver("zip", {
-      zlib: { level: this.config.get("share.zipCompressionLevel") },
+      zlib: { level: this.configService.get("share.zipCompressionLevel") },
     });
     const writeStream = fs.createWriteStream(`${path}/archive.zip`);
 
@@ -167,7 +166,7 @@ export class ShareService {
     }
 
     const notifyReverseShareCreator = share.reverseShare
-      ? this.config.get("smtp.enabled") &&
+      ? this.configService.get("smtp.enabled") &&
         share.reverseShare.sendEmailNotification
       : undefined;
 
@@ -267,11 +266,11 @@ export class ShareService {
       },
     });
 
-    if (share.removedReason)
-      throw new NotFoundException(share.removedReason, "share_removed");
-
     if (!share || !share.uploadLocked)
       throw new NotFoundException("Share not found");
+
+    if (share.removedReason)
+      throw new NotFoundException(share.removedReason, "share_removed");
     return {
       ...share,
       hasPassword: !!share.security?.password,
@@ -368,7 +367,7 @@ export class ShareService {
     };
 
     const tokenOptions: JwtSignOptions = {
-      secret: this.config.get("internal.jwtSecret"),
+      secret: this.configService.get("internal.jwtSecret"),
     };
 
     if (!moment(expiration).isSame(0)) {
@@ -385,7 +384,7 @@ export class ShareService {
 
     try {
       const claims = this.jwtService.verify(token, {
-        secret: this.config.get("internal.jwtSecret"),
+        secret: this.configService.get("internal.jwtSecret"),
         // Ignore expiration if expiration is 0
         ignoreExpiration: moment(expiration).isSame(0),
       });

@@ -11,6 +11,7 @@ const TimespanInput = ({
 }: {
   label?: string;
   value: Timespan;
+  // eslint-disable-next-line no-unused-vars
   onChange: (timespan: Timespan) => void;
   [key: string]: any;
 }) => {

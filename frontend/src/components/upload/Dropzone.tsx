@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 import { Button, Center, createStyles, Group, Text } from "@mantine/core";
 import { Dropzone as MantineDropzone } from "@mantine/dropzone";
-import { ForwardedRef, useRef } from "react";
+import { useRef } from "react";
 import { TbCloudUpload, TbUpload } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import useTranslate from "../../hooks/useTranslate.hook";
@@ -122,6 +122,7 @@ const Dropzone = ({
   title?: string;
   isUploading: boolean;
   maxShareSize: number;
+  // eslint-disable-next-line no-unused-vars
   onFilesChanged: (files: FileUpload[]) => void;
 }) => {
   const t = useTranslate();
@@ -135,8 +136,8 @@ const Dropzone = ({
           toast.error(e[0].errors[0].message);
         }}
         disabled={isUploading}
-        openRef={openRef as ForwardedRef<() => void>}
-        useFsAccessApi={false}
+        openRef={openRef as any}
+        useFsAccessApi={true}
         getFilesFromEvent={getFilesFromEvent as any}
         onDrop={(files: FileUpload[]) => {
           const fileSizeSum = files.reduce((n, { size }) => n + size, 0);

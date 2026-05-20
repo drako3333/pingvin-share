@@ -17,6 +17,7 @@ const AdminConfigInput = ({
   updateConfigVariable,
 }: {
   configVariable: AdminConfig;
+  // eslint-disable-next-line no-unused-vars
   updateConfigVariable: (variable: UpdateConfig) => void;
 }) => {
   const form = useForm({

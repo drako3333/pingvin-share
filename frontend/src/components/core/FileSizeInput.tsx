@@ -31,6 +31,7 @@ const FileSizeInput = ({
 }: {
   label?: string;
   value: number;
+  // eslint-disable-next-line no-unused-vars
   onChange: (number: number) => void;
   [key: string]: any;
 }) => {

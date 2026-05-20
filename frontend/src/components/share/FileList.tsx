@@ -12,7 +12,6 @@ import { useModals } from "@mantine/modals";
 import React, { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { TbDownload, TbEye, TbLink, TbFolder, TbFolderOpen, TbFile } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
-import useConfig from "../../hooks/config.hook";
 import useTranslate from "../../hooks/useTranslate.hook";
 import shareService from "../../services/share.service";
 import { FileMetaData } from "../../types/File.type";
@@ -106,7 +105,6 @@ const FileList = ({
   isLoading: boolean;
 }) => {
   const clipboard = useClipboard();
-  const config = useConfig();
   const modals = useModals();
   const t = useTranslate();
 

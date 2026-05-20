@@ -208,15 +208,27 @@ export class ShareController {
   private clearShareTokenCookies(request: Request, response: Response) {
     const shareTokenCookies = Object.entries(request.cookies)
       .filter(([key]) => key.startsWith("share_") && key.endsWith("_token"))
-      .map(([key, value]) => ({
-        key,
-        payload: this.jwtService.decode(value),
-      }));
+      .map(([key, value]) => {
+        let payload: any = null;
+        try {
+          payload = this.jwtService.decode(value);
+        } catch {}
+        return { key, payload };
+      });
 
-    const expiredTokens = shareTokenCookies.filter(
+    const malformedCookies = shareTokenCookies.filter(
+      (cookie) => !cookie.payload || typeof cookie.payload.exp !== "number",
+    );
+    malformedCookies.forEach((cookie) => response.clearCookie(cookie.key));
+
+    const activeCookies = shareTokenCookies.filter(
+      (cookie) => cookie.payload && typeof cookie.payload.exp === "number",
+    );
+
+    const expiredTokens = activeCookies.filter(
       (cookie) => cookie.payload.exp < moment().unix(),
     );
-    const validTokens = shareTokenCookies.filter(
+    const validTokens = activeCookies.filter(
       (cookie) => cookie.payload.exp >= moment().unix(),
     );
 

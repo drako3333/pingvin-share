@@ -54,12 +54,12 @@ const Admin = () => {
       route: "/admin/shares",
     },
     {
-      title: "Statistiques & Analyses",
+      title: t("analytics.title"),
       icon: TbChartBar,
       route: "/admin/analytics",
     },
     {
-      title: "Logs d'audit",
+      title: t("analytics.logs-audit"),
       icon: TbListDetails,
       route: "/admin/audit-logs",
     },

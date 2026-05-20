@@ -181,11 +181,15 @@ const MyShares = () => {
                               confirm: t("common.button.delete"),
                               cancel: t("common.button.cancel"),
                             },
-                            onConfirm: () => {
-                              shareService.remove(share.id);
-                              setShares(
-                                shares.filter((item) => item.id !== share.id),
-                              );
+                            onConfirm: async () => {
+                              try {
+                                await shareService.remove(share.id);
+                                setShares(
+                                  shares.filter((item) => item.id !== share.id),
+                                );
+                              } catch (e) {
+                                toast.axiosError(e);
+                              }
                             },
                           });
                         }}

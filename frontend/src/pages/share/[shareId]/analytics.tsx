@@ -17,8 +17,10 @@ import { GetServerSidePropsContext } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { TbArrowLeft, TbWorld, TbDeviceDesktop, TbDownload, TbUsers } from "react-icons/tb";
+import { FormattedMessage } from "react-intl";
 import Meta from "../../../components/Meta";
 import shareService from "../../../services/share.service";
+import useTranslate from "../../../hooks/useTranslate.hook";
 import moment from "moment";
 
 export function getServerSideProps(context: GetServerSidePropsContext) {
@@ -40,6 +42,7 @@ interface AnalyticEntry {
 }
 
 const ShareAnalytics = ({ shareId }: { shareId: string }) => {
+  const t = useTranslate();
   const [logs, setLogs] = useState<AnalyticEntry[]>([]);
   const [shareName, setShareName] = useState<string>("");
   const [filesMap, setFilesMap] = useState<Record<string, string>>({});
@@ -90,7 +93,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
   const getMostFrequent = (arr: (string | null)[]) => {
     const counts: Record<string, number> = {};
     let maxCount = 0;
-    let mostFrequent = "Aucun";
+    let mostFrequent = t("analytics.unknown");
 
     arr.forEach((val) => {
       if (!val) return;
@@ -111,7 +114,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
   const getPercentages = (arr: (string | null)[]) => {
     const counts: Record<string, number> = {};
     arr.forEach((val) => {
-      const key = val || "Autre";
+      const key = val || t("analytics.unknown");
       counts[key] = (counts[key] || 0) + 1;
     });
 
@@ -130,7 +133,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
 
   return (
     <>
-      <Meta title={`Analyses - ${shareName}`} />
+      <Meta title={t("analytics.title-share", { shareName })} />
       
       <Group position="apart" mb={20} align="center">
         <div>
@@ -142,11 +145,13 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
             compact
             mb={10}
           >
-            Retour à mes partages
+            <FormattedMessage id="analytics.back-to-shares" />
           </Button>
-          <Title order={3}>Statistiques & Analyses : {shareName}</Title>
+          <Title order={3}>
+            <FormattedMessage id="analytics.title-share" values={{ shareName }} />
+          </Title>
           <Text size="sm" color="dimmed">
-            Suivi des téléchargements, visiteurs uniques et provenance géographique.
+            <FormattedMessage id="analytics.subtitle-share" />
           </Text>
         </div>
       </Group>
@@ -157,7 +162,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
             <Group position="apart">
               <Text size="xs" color="dimmed" weight={700} transform="uppercase">
-                Téléchargements
+                <FormattedMessage id="analytics.downloads" />
               </Text>
               <TbDownload size={20} color="gray" />
             </Group>
@@ -165,7 +170,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
               {totalDownloads}
             </Text>
             <Text size="xs" color="dimmed" mt={5}>
-              Volume total de fichiers récupérés
+              <FormattedMessage id="analytics.downloads.subtitle" />
             </Text>
           </Paper>
         </Col>
@@ -174,7 +179,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
             <Group position="apart">
               <Text size="xs" color="dimmed" weight={700} transform="uppercase">
-                Visiteurs Uniques
+                <FormattedMessage id="analytics.visitors" />
               </Text>
               <TbUsers size={20} color="gray" />
             </Group>
@@ -182,7 +187,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
               {uniqueIps}
             </Text>
             <Text size="xs" color="dimmed" mt={5}>
-              Adresses IP distinctes enregistrées
+              <FormattedMessage id="analytics.visitors.subtitle" />
             </Text>
           </Paper>
         </Col>
@@ -191,7 +196,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
             <Group position="apart">
               <Text size="xs" color="dimmed" weight={700} transform="uppercase">
-                Pays Principal
+                <FormattedMessage id="analytics.country" />
               </Text>
               <TbWorld size={20} color="gray" />
             </Group>
@@ -199,7 +204,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
               {topCountry}
             </Text>
             <Text size="xs" color="dimmed" mt={5}>
-              Provenance la plus fréquente
+              <FormattedMessage id="analytics.country.subtitle" />
             </Text>
           </Paper>
         </Col>
@@ -208,7 +213,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
             <Group position="apart">
               <Text size="xs" color="dimmed" weight={700} transform="uppercase">
-                Appareil Principal
+                <FormattedMessage id="analytics.device" />
               </Text>
               <TbDeviceDesktop size={20} color="gray" />
             </Group>
@@ -216,7 +221,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
               {topDevice}
             </Text>
             <Text size="xs" color="dimmed" mt={5}>
-              Type d'écran le plus utilisé
+              <FormattedMessage id="analytics.device.subtitle" />
             </Text>
           </Paper>
         </Col>
@@ -229,10 +234,12 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           <Col span={12} md={6}>
             <Card withBorder radius="md" p="lg" style={{ height: "100%" }}>
               <Title order={4} mb={15}>
-                Appareils & Navigateurs
+                <FormattedMessage id="analytics.devices-browsers" />
               </Title>
               
-              <Text size="sm" weight={600} mb={5}>Types d'appareils</Text>
+              <Text size="sm" weight={600} mb={5}>
+                <FormattedMessage id="analytics.device-types" />
+              </Text>
               <Progress
                 size="xl"
                 radius="xl"
@@ -247,8 +254,10 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
                 mb={20}
               />
 
-              <Text size="sm" weight={600} mb={10}>Navigateurs</Text>
-              {browsersBreakdown.map((browser, idx) => (
+              <Text size="sm" weight={600} mb={10}>
+                <FormattedMessage id="analytics.browsers" />
+              </Text>
+              {browsersBreakdown.map((browser) => (
                 <div key={browser.name} style={{ marginBottom: 12 }}>
                   <Group position="apart" mb={4}>
                     <Text size="xs" weight={500}>{browser.name}</Text>
@@ -264,7 +273,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           <Col span={12} md={6}>
             <Card withBorder radius="md" p="lg" style={{ height: "100%" }}>
               <Title order={4} mb={15}>
-                Top Localisations
+                <FormattedMessage id="analytics.locations" />
               </Title>
               {countriesBreakdown.slice(0, 5).map((country) => (
                 <div key={country.name} style={{ marginBottom: 15 }}>
@@ -274,7 +283,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
                   </Group>
                   <Progress value={country.percentage} size="sm" color="blue" />
                   <Text size="xs" color="dimmed" mt={2}>
-                    {country.count} téléchargement(s)
+                    <FormattedMessage id="analytics.count-downloads" values={{ count: country.count }} />
                   </Text>
                 </div>
               ))}
@@ -284,27 +293,45 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
       )}
 
       {/* Download Activity Table */}
-      <Title order={4} mb={15}>Historique des Téléchargements</Title>
+      <Title order={4} mb={15}>
+        <FormattedMessage id="analytics.history" />
+      </Title>
       <Card radius="md" withBorder p={0} style={{ overflow: "auto" }}>
         {logs.length === 0 ? (
           <Center p={40}>
-            <Text color="dimmed">Aucune activité de téléchargement enregistrée pour le moment.</Text>
+            <Text color="dimmed">
+              <FormattedMessage id="analytics.history.empty" />
+            </Text>
           </Center>
         ) : (
           <Table verticalSpacing="md" horizontalSpacing="lg" highlightOnHover>
             <thead>
               <tr>
-                <th>Date & Heure</th>
-                <th>Fichier</th>
-                <th>IP</th>
-                <th>Pays</th>
-                <th>Appareil</th>
-                <th>Navigateur</th>
+                <th>
+                  <FormattedMessage id="analytics.table.date" />
+                </th>
+                <th>
+                  <FormattedMessage id="analytics.table.file" />
+                </th>
+                <th>
+                  <FormattedMessage id="analytics.table.ip" />
+                </th>
+                <th>
+                  <FormattedMessage id="analytics.table.country" />
+                </th>
+                <th>
+                  <FormattedMessage id="analytics.table.device" />
+                </th>
+                <th>
+                  <FormattedMessage id="analytics.table.browser" />
+                </th>
               </tr>
             </thead>
             <tbody>
               {logs.map((log) => {
-                const fileName = log.fileId ? filesMap[log.fileId] || "Fichier Supprimé" : "Archive ZIP Complète";
+                const fileName = log.fileId
+                  ? filesMap[log.fileId] || t("analytics.file-deleted")
+                  : t("analytics.zip-complete");
                 return (
                   <tr key={log.id}>
                     <td>
@@ -321,14 +348,14 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
                       <Text size="sm">{log.ip}</Text>
                     </td>
                     <td>
-                      <Text size="sm">{log.country || "Inconnu"}</Text>
+                      <Text size="sm">{log.country || t("analytics.unknown")}</Text>
                     </td>
                     <td>
                       <Text size="sm">{log.device || "Desktop"}</Text>
                     </td>
                     <td>
                       <Text size="sm" color="dimmed">
-                        {log.browser || "Inconnu"}
+                        {log.browser || t("analytics.unknown")}
                       </Text>
                     </td>
                   </tr>
