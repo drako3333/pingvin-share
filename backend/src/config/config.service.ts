@@ -142,6 +142,21 @@ export class ConfigService extends EventEmitter {
         "You are only allowed to update config variables via the config.yaml file",
       );
 
+    const s3EnabledUpdate = data.find(item => item.key === 's3.enabled');
+    const s3DisableLocalStorageUpdate = data.find(item => item.key === 's3.disableLocalStorage');
+
+    const finalS3Enabled = s3EnabledUpdate 
+      ? (s3EnabledUpdate.value === true || s3EnabledUpdate.value === 'true')
+      : this.get('s3.enabled');
+
+    const finalS3DisableLocalStorage = s3DisableLocalStorageUpdate
+      ? (s3DisableLocalStorageUpdate.value === true || s3DisableLocalStorageUpdate.value === 'true')
+      : this.get('s3.disableLocalStorage');
+
+    if (finalS3DisableLocalStorage && !finalS3Enabled) {
+      throw new BadRequestException("S3 must be enabled to disable local storage.");
+    }
+
     const response: Config[] = [];
 
     for (const variable of data) {

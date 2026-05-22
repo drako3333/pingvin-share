@@ -9,6 +9,7 @@ export type Share = {
   expiration: Date;
   size: number;
   hasPassword: boolean;
+  burnAfterReading?: boolean;
 };
 
 export type CompletedShare = Share & {
@@ -52,9 +53,11 @@ export type MyReverseShare = {
 export type ShareSecurity = {
   maxViews?: number;
   password?: string;
+  burnAfterReading?: boolean;
 };
 
 export type MyShareSecurity = {
   passwordProtected: boolean;
   maxViews: number;
+  burnAfterReading: boolean;
 };

@@ -1,29 +1,51 @@
-import { MantineThemeOverride } from "@mantine/core";
+import { createTheme } from "@mantine/core";
 
-export default <MantineThemeOverride>{
+export default createTheme({
   colors: {
     victoria: [
-      "#E2E1F1",
-      "#C2C0E7",
-      "#A19DE4",
-      "#7D76E8",
-      "#544AF4",
-      "#4940DE",
-      "#4239C8",
-      "#463FA8",
-      "#47428E",
-      "#464379",
+      "#f0f5ff", // 0: Très clair, glacé
+      "#deebff", // 1
+      "#c2dbff", // 2
+      "#9bc5ff", // 3
+      "#6fa3ff", // 4
+      "#487cff", // 5
+      "#2563eb", // 6: Bleu Cobalt Titan (Couleur Primaire)
+      "#1d4ed8", // 7
+      "#173cb3", // 8
+      "#132e8f", // 9
     ],
   },
   primaryColor: "victoria",
+  defaultRadius: "sm",
+  radius: {
+    xs: "4px",
+    sm: "6px",
+    md: "6px",
+    lg: "8px",
+    xl: "12px",
+  },
   components: {
     Modal: {
-      styles: (theme) => ({
+      styles: {
         title: {
-          fontSize: theme.fontSizes.lg,
-          fontWeight: 700,
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: "var(--mantine-font-size-lg)",
+          fontWeight: "700",
         },
-      }),
+      },
+    },
+    Button: {
+      styles: {
+        root: {
+          fontFamily: "'JetBrains Mono', monospace",
+          fontWeight: 600,
+          letterSpacing: "-0.02em",
+          transition: "transform 0.1s ease, filter 0.1s ease",
+          "&:active": {
+            transform: "scale(0.97)",
+          },
+        },
+      },
     },
   },
-};
+});

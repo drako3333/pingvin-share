@@ -4,7 +4,7 @@ import {
   Stack,
   Text,
   Title,
-  useMantineTheme,
+  useMantineColorScheme,
   Group,
   ActionIcon,
   Tooltip,
@@ -101,7 +101,7 @@ const FilePreview = ({
 
   // Keep only previewable files
   const previewableFiles = files.filter((f) =>
-    shareService.doesFileSupportPreview(f.name)
+    shareService.doesFileSupportPreview(f.name),
   );
 
   const currentIndex = previewableFiles.findIndex((f) => f.id === activeFileId);
@@ -142,15 +142,23 @@ const FilePreview = ({
   const mimeType = (mime.contentType(currentFile.name) || "").split(";")[0];
 
   return (
-    <div style={{ position: "relative", width: "100%", paddingLeft: "45px", paddingRight: "45px" }}>
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        paddingLeft: "45px",
+        paddingRight: "45px",
+      }}
+    >
       {/* Header */}
-      <Group position="apart" mb="md">
+      <Group justify="space-between" mb="md">
         <div>
           <Title order={4} style={{ wordBreak: "break-all" }}>
             {currentFile.name.split("/").pop()}
           </Title>
           <Text size="xs" color="dimmed">
-            Format : {mimeType} • Index : {currentIndex + 1} / {previewableFiles.length}
+            Format : {mimeType} • Index : {currentIndex + 1} /{" "}
+            {previewableFiles.length}
           </Text>
         </div>
       </Group>
@@ -213,7 +221,7 @@ const FilePreview = ({
           onClick={() => modals.closeAll()}
           target="_blank"
           href={`/api/shares/${shareId}/files/${currentFile.id}?download=false`}
-          leftIcon={<TbDownload size={16} />}
+          leftSection={<TbDownload size={16} />}
         >
           Voir le fichier original
         </Button>
@@ -270,15 +278,28 @@ const FileDecider = ({
     return <ImagePreview shareId={shareId} fileId={fileId} />;
   } else if (mimeType.startsWith("audio/")) {
     return <AudioPreview shareId={shareId} fileId={fileId} />;
-  } else if (mimeType.startsWith("text/") || (ext && codeExts.includes(ext)) || mimeType === "application/json" || mimeType === "application/javascript") {
-    return <TextPreview shareId={shareId} fileId={fileId} fileName={fileName} />;
+  } else if (
+    mimeType.startsWith("text/") ||
+    (ext && codeExts.includes(ext)) ||
+    mimeType === "application/json" ||
+    mimeType === "application/javascript"
+  ) {
+    return (
+      <TextPreview shareId={shareId} fileId={fileId} fileName={fileName} />
+    );
   } else {
     return <UnSupportedFile />;
   }
 };
 
-const ImagePreview = ({ shareId, fileId }: { shareId: string; fileId: string }) => {
-  const { colorScheme } = useMantineTheme();
+const ImagePreview = ({
+  shareId,
+  fileId,
+}: {
+  shareId: string;
+  fileId: string;
+}) => {
+  const { colorScheme } = useMantineColorScheme();
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -322,8 +343,8 @@ const ImagePreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
   };
 
   return (
-    <Stack align="center" spacing="xs">
-      <Group spacing="xs" position="center">
+    <Stack align="center" gap="xs">
+      <Group gap="xs" justify="center">
         <Tooltip label="Zoomer">
           <ActionIcon onClick={zoomIn} variant="light" color="blue">
             <TbZoomIn size={18} />
@@ -376,19 +397,35 @@ const ImagePreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
   );
 };
 
-const VideoPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) => {
+const VideoPreview = ({
+  shareId,
+  fileId,
+}: {
+  shareId: string;
+  fileId: string;
+}) => {
   return (
-    <div style={{ borderRadius: "8px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
+    <div
+      style={{
+        borderRadius: "8px",
+        overflow: "hidden",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+      }}
+    >
       <video width="100%" controls style={{ display: "block" }}>
-        <source
-          src={`/api/shares/${shareId}/files/${fileId}?download=false`}
-        />
+        <source src={`/api/shares/${shareId}/files/${fileId}?download=false`} />
       </video>
     </div>
   );
 };
 
-const PdfPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) => {
+const PdfPreview = ({
+  shareId,
+  fileId,
+}: {
+  shareId: string;
+  fileId: string;
+}) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -396,12 +433,24 @@ const PdfPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) =>
   }, [fileId]);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "70vh", overflow: "hidden", borderRadius: "8px" }}>
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "70vh",
+        overflow: "hidden",
+        borderRadius: "8px",
+      }}
+    >
       {isLoading && (
-        <Center style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+        <Center
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
           <Stack align="center">
             <Loader size="xl" />
-            <Text size="sm" color="dimmed">Chargement du document PDF...</Text>
+            <Text size="sm" color="dimmed">
+              Chargement du document PDF...
+            </Text>
           </Stack>
         </Center>
       )}
@@ -419,8 +468,14 @@ const PdfPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) =>
   );
 };
 
-const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) => {
-  const theme = useMantineTheme();
+const AudioPreview = ({
+  shareId,
+  fileId,
+}: {
+  shareId: string;
+  fileId: string;
+}) => {
+  const { colorScheme } = useMantineColorScheme();
   const [loadingAudio, setLoadingAudio] = useState(true);
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -442,7 +497,8 @@ const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
     axios
       .get(url, { responseType: "arraybuffer" })
       .then(async (res) => {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const AudioCtx =
+          window.AudioContext || (window as any).webkitAudioContext;
         if (!AudioCtx) {
           setLoadingAudio(false);
           return;
@@ -502,8 +558,8 @@ const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
     const barGap = (width / numBars) * 0.35;
 
     const progress = duration > 0 ? currentTime / duration : 0;
-    const activeColor = theme.colorScheme === "dark" ? "#228be6" : "#1971c2";
-    const mutedColor = theme.colorScheme === "dark" ? "#373a40" : "#dee2e6";
+    const activeColor = colorScheme === "dark" ? "#228be6" : "#1971c2";
+    const mutedColor = colorScheme === "dark" ? "#373a40" : "#dee2e6";
 
     for (let i = 0; i < numBars; i++) {
       const peak = peaks[i];
@@ -522,7 +578,7 @@ const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
       }
       ctx.fill();
     }
-  }, [audioBuffer, currentTime, duration, theme.colorScheme]);
+  }, [audioBuffer, currentTime, duration, colorScheme]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -547,16 +603,20 @@ const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60).toString().padStart(2, "0");
+    const s = Math.floor(secs % 60)
+      .toString()
+      .padStart(2, "0");
     return `${m}:${s}`;
   };
 
   if (loadingAudio) {
     return (
       <Center style={{ minHeight: 200 }}>
-        <Stack align="center" spacing="xs">
+        <Stack align="center" gap="xs">
           <Loader />
-          <Text size="sm" color="dimmed">Décryptage des fréquences audio...</Text>
+          <Text size="sm" color="dimmed">
+            Décryptage des fréquences audio...
+          </Text>
         </Stack>
       </Center>
     );
@@ -564,7 +624,7 @@ const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
 
   return (
     <Center style={{ minHeight: 200 }}>
-      <Stack align="center" spacing="md" style={{ width: "100%" }}>
+      <Stack align="center" gap="md" style={{ width: "100%" }}>
         <audio
           ref={audioRef}
           src={`/api/shares/${shareId}/files/${fileId}?download=false`}
@@ -595,11 +655,21 @@ const AudioPreview = ({ shareId, fileId }: { shareId: string; fileId: string }) 
           }}
         />
 
-        <Group position="apart" style={{ width: "100%" }} px="xs">
-          <ActionIcon onClick={togglePlay} variant="filled" color="blue" size="xl" radius="xl">
-            {isPlaying ? <TbPlayerPause size={24} /> : <TbPlayerPlay size={24} />}
+        <Group justify="space-between" style={{ width: "100%" }} px="xs">
+          <ActionIcon
+            onClick={togglePlay}
+            variant="filled"
+            color="blue"
+            size="xl"
+            radius="xl"
+          >
+            {isPlaying ? (
+              <TbPlayerPause size={24} />
+            ) : (
+              <TbPlayerPlay size={24} />
+            )}
           </ActionIcon>
-          <Text size="sm" weight={600} color="dimmed">
+          <Text size="sm" fw={600} color="dimmed">
             {formatTime(currentTime)} / {formatTime(duration)}
           </Text>
         </Group>
@@ -619,14 +689,18 @@ const TextPreview = ({
 }) => {
   const [text, setText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
-  const { colorScheme } = useMantineTheme();
+  const { colorScheme } = useMantineColorScheme();
 
   useEffect(() => {
     setLoading(true);
     api
       .get(`/shares/${shareId}/files/${fileId}?download=false`)
       .then((res) => {
-        setText(typeof res.data === "object" ? JSON.stringify(res.data, null, 2) : (res.data ?? ""));
+        setText(
+          typeof res.data === "object"
+            ? JSON.stringify(res.data, null, 2)
+            : (res.data ?? ""),
+        );
         setLoading(false);
       })
       .catch(() => {
@@ -675,7 +749,7 @@ const TextPreview = ({
   const highlighted = Prism.highlight(
     text,
     Prism.languages[lang] || Prism.languages.markup,
-    lang
+    lang,
   );
 
   return (
@@ -733,7 +807,10 @@ const TextPreview = ({
       `,
         }}
       />
-      <pre className={`language-${lang}`} style={{ maxHeight: "60vh", overflow: "auto" }}>
+      <pre
+        className={`language-${lang}`}
+        style={{ maxHeight: "60vh", overflow: "auto" }}
+      >
         <code
           className={`language-${lang}`}
           dangerouslySetInnerHTML={{ __html: highlighted }}
@@ -746,9 +823,11 @@ const TextPreview = ({
 const UnSupportedFile = () => {
   return (
     <Center style={{ minHeight: 200 }}>
-      <Stack align="center" spacing={10}>
+      <Stack align="center" gap={10}>
         <Title order={3}>Format non pris en charge</Title>
-        <Text>Ce format de fichier ne peut pas être prévisualisé en ligne.</Text>
+        <Text>
+          Ce format de fichier ne peut pas être prévisualisé en ligne.
+        </Text>
       </Stack>
     </Center>
   );

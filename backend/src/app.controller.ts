@@ -3,7 +3,8 @@ import { Response } from "express";
 import { PrismaService } from "./prisma/prisma.service";
 import { JwtGuard } from "./auth/guard/jwt.guard";
 import { AdministratorGuard } from "./auth/guard/isAdmin.guard";
-import { DATA_DIRECTORY } from "./constants";
+import { DATA_DIRECTORY, SHARE_DIRECTORY } from "./constants";
+import { ConfigService } from "./config/config.service";
 import { exec } from "child_process";
 import { promisify } from "util";
 import * as os from "os";
@@ -41,7 +42,10 @@ async function getDiskSpace(dirPath: string): Promise<{ total: number; free: num
 
 @Controller("/")
 export class AppController {
-  constructor(private prismaService: PrismaService) {}
+  constructor(
+    private prismaService: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   @Get("health")
   async health(@Res({ passthrough: true }) res: Response) {
@@ -89,10 +93,14 @@ export class AppController {
 
     const totalFiles = await this.prismaService.file.count();
 
-    const files = await this.prismaService.file.findMany({
-      select: { size: true },
+    // Query files and their shares to calculate precise multi-storage consumption
+    const allFiles = await this.prismaService.file.findMany({
+      include: {
+        share: true,
+      },
     });
-    const totalSize = files.reduce(
+
+    const totalSize = allFiles.reduce(
       (acc, file) => acc + parseInt(file.size || "0"),
       0,
     );
@@ -122,7 +130,55 @@ export class AppController {
       },
     });
 
-    const diskInfo = await getDiskSpace(DATA_DIRECTORY);
+    // 1. Calculate physical local SSD metrics (Hot Storage - Tier 1)
+    const localSSDSpace = await getDiskSpace(SHARE_DIRECTORY);
+    const localConsumed = allFiles
+      .filter((f) => !f.share || f.share.storageProvider === "LOCAL" || !f.share.storageProvider)
+      .reduce((acc, f) => acc + parseInt(f.size || "0"), 0);
+
+    // 2. Parse multi-buckets (MinIO Tier 2 & B2 Tier 3)
+    const isMultiBucketsEnabled = this.configService.get("s3.multiBucketsEnabled") === "true" || this.configService.get("s3.multiBucketsEnabled") === true;
+    const multiBucketsConfigStr = this.configService.get("s3.multiBucketsConfig") || "[]";
+    let bucketsConfig = [];
+    try {
+      bucketsConfig = JSON.parse(multiBucketsConfigStr);
+    } catch {}
+
+    const buckets = [];
+    for (const b of bucketsConfig) {
+      let bTotal = null;
+      let bFree = null;
+      let bUsed = null;
+
+      if (b.type === "minio" && b.physicalPath) {
+        try {
+          const bDisk = await getDiskSpace(b.physicalPath);
+          bTotal = bDisk.total;
+          bFree = bDisk.free;
+          bUsed = bTotal - bFree;
+        } catch {}
+      }
+
+      const bConsumed = allFiles
+        .filter(
+          (f) =>
+            f.share &&
+            f.share.storageProvider === "S3" &&
+            f.share.s3BucketId &&
+            f.share.s3BucketId.split(",").includes(b.id),
+        )
+        .reduce((acc, f) => acc + parseInt(f.size || "0"), 0);
+
+      buckets.push({
+        id: b.id,
+        name: b.name,
+        type: b.type,
+        total: bTotal,
+        free: bFree,
+        used: bUsed,
+        consumed: bConsumed,
+      });
+    }
 
     return {
       totalShares,
@@ -136,9 +192,19 @@ export class AppController {
       passwordProtectedShares,
       totalDownloads,
       downloadsToday,
-      diskTotal: diskInfo.total,
-      diskFree: diskInfo.free,
-      diskUsed: diskInfo.total - diskInfo.free,
+      diskTotal: localSSDSpace.total,
+      diskFree: localSSDSpace.free,
+      diskUsed: localSSDSpace.total - localSSDSpace.free,
+      storageStats: {
+        local: {
+          name: "SSD Local (Hot - Tier 1)",
+          total: localSSDSpace.total,
+          free: localSSDSpace.free,
+          used: localSSDSpace.total - localSSDSpace.free,
+          consumed: localConsumed,
+        },
+        buckets,
+      },
     };
   }
 }

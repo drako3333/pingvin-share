@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Length } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional, IsString, Length } from "class-validator";
 
 export class ShareSecurityDTO {
   @IsString()
@@ -9,4 +9,8 @@ export class ShareSecurityDTO {
   @IsNumber()
   @IsOptional()
   maxViews: number;
+
+  @IsBoolean()
+  @IsOptional()
+  burnAfterReading: boolean;
 }

@@ -15,7 +15,15 @@ import { useModals } from "@mantine/modals";
 import moment from "moment";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { TbEdit, TbInfoCircle, TbLink, TbLock, TbTrash, TbChartBar } from "react-icons/tb";
+import {
+  TbEdit,
+  TbFlame,
+  TbInfoCircle,
+  TbLink,
+  TbLock,
+  TbTrash,
+  TbChartBar,
+} from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import Meta from "../../components/Meta";
 import showShareInformationsModal from "../../components/account/showShareInformationsModal";
@@ -49,7 +57,7 @@ const MyShares = () => {
       </Title>
       {shares.length == 0 ? (
         <Center style={{ height: "70vh" }}>
-          <Stack align="center" spacing={10}>
+          <Stack align="center" gap={10}>
             <Title order={3}>
               <FormattedMessage id="account.shares.title.empty" />
             </Title>
@@ -63,7 +71,7 @@ const MyShares = () => {
           </Stack>
         </Center>
       ) : (
-        <Box sx={{ display: "block", overflowX: "auto" }}>
+        <Box style={{ display: "block", overflowX: "auto" }}>
           <Table>
             <thead>
               <tr>
@@ -86,12 +94,20 @@ const MyShares = () => {
               {shares.map((share) => (
                 <tr key={share.id}>
                   <td>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                       {share.id}{" "}
                       {share.security.passwordProtected && (
                         <TbLock
                           color="orange"
                           title={t("account.shares.table.password-protected")}
+                        />
+                      )}
+                      {share.security.burnAfterReading && (
+                        <TbFlame
+                          color="red"
+                          title={t(
+                            "upload.modal.accordion.security.burn-after-reading.label",
+                          )}
                         />
                       )}
                     </Group>
@@ -118,9 +134,14 @@ const MyShares = () => {
                     )}
                   </td>
                   <td>
-                    <Group position="right">
+                    <Group justify="flex-end">
                       <Link href={`/share/${share.id}/analytics`}>
-                        <ActionIcon color="teal" variant="light" size={25} title="Statistiques & Analyses">
+                        <ActionIcon
+                          color="teal"
+                          variant="light"
+                          size={25}
+                          title="Statistiques & Analyses"
+                        >
                           <TbChartBar />
                         </ActionIcon>
                       </Link>

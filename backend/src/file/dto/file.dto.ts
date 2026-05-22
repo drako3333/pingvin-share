@@ -11,6 +11,15 @@ export class FileDTO {
   @Expose()
   size: string;
 
+  @Expose()
+  isSuspect: boolean;
+
+  @Expose()
+  virusName?: string;
+
+  @Expose()
+  isApproved: boolean;
+
   share: ShareDTO;
 
   from(partial: Partial<FileDTO>) {

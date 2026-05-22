@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Logger,
 } from "@nestjs/common";
 import { JwtService, JwtSignOptions } from "@nestjs/jwt";
 import { Share, User } from "@prisma/client";
@@ -20,9 +21,12 @@ import { ReverseShareService } from "src/reverseShare/reverseShare.service";
 import { parseRelativeDateToAbsolute } from "src/utils/date.util";
 import { SHARE_DIRECTORY } from "../constants";
 import { CreateShareDTO } from "./dto/createShare.dto";
+import { NotificationService } from "src/notification/notification.service";
 
 @Injectable()
 export class ShareService {
+  private readonly logger = new Logger(ShareService.name);
+
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
@@ -31,9 +35,10 @@ export class ShareService {
     private jwtService: JwtService,
     private reverseShareService: ReverseShareService,
     private clamScanService: ClamScanService,
+    private notificationService: NotificationService,
   ) {}
 
-  async create(share: CreateShareDTO, user?: User, reverseShareToken?: string) {
+  async create(share: CreateShareDTO, user?: User, reverseShareToken?: string, clientIp?: string) {
     if (!(await this.isShareIdAvailable(share.id)).isAvailable)
       throw new BadRequestException("Share id already in use");
 
@@ -75,6 +80,62 @@ export class ShareService {
       recursive: true,
     });
 
+    const isS3Enabled = this.configService.get("s3.enabled");
+    const disableLocalStorage = this.configService.get("s3.disableLocalStorage");
+    const useS3 = isS3Enabled || disableLocalStorage;
+    const isMultiBucketsEnabled = this.configService.get("s3.multiBucketsEnabled");
+    let s3BucketId: string | null = null;
+
+    if (isS3Enabled && isMultiBucketsEnabled && clientIp) {
+      // Normalize IPv6 mapped IPv4 or local loopback
+      const normalizedIp = clientIp.replace(/^::ffff:/, "");
+      if (normalizedIp !== "127.0.0.1" && normalizedIp !== "::1") {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2-second timeout
+
+          const res = await fetch(`https://ipapi.co/${normalizedIp}/json/`, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const geoData = (await res.json()) as any;
+            const country = geoData.country_name;      // e.g. "France" or "United States"
+            const continent = geoData.continent_code;  // e.g. "EU", "NA", "AS"
+            const region = geoData.region;             // e.g. "Île-de-France"
+
+            const bucketsConfigStr = this.configService.get("s3.multiBucketsConfig");
+            const buckets = JSON.parse(bucketsConfigStr || "[]");
+
+            for (const bucket of buckets) {
+              if (Array.isArray(bucket.regionsMatched)) {
+                const match = bucket.regionsMatched.some((r: string) => {
+                  const rLower = r.toLowerCase();
+                  return (
+                    (country && country.toLowerCase().includes(rLower)) ||
+                    (continent && continent.toLowerCase() === rLower) ||
+                    (region && region.toLowerCase().includes(rLower)) ||
+                    (rLower === "europe" && continent === "EU") ||
+                    (rLower === "north america" && continent === "NA") ||
+                    (rLower === "asia" && continent === "AS")
+                  );
+                });
+
+                if (match) {
+                  s3BucketId = bucket.id;
+                  this.logger.log(`Routed share ${share.id} to S3 bucket ${s3BucketId} for IP ${normalizedIp} (${country || "unknown country"})`);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (err: any) {
+          this.logger.warn(`Could not resolve IP location for ${normalizedIp}: ${err.message}`);
+        }
+      }
+    }
+
     const shareTuple = await this.prisma.share.create({
       data: {
         ...share,
@@ -86,7 +147,8 @@ export class ShareService {
             ? share.recipients.map((email) => ({ email }))
             : [],
         },
-        storageProvider: this.configService.get("s3.enabled") ? "S3" : "LOCAL",
+        storageProvider: useS3 ? "S3" : "LOCAL",
+        s3BucketId,
       },
     });
 
@@ -106,7 +168,7 @@ export class ShareService {
   }
 
   async createZip(shareId: string) {
-    if (this.configService.get("s3.enabled")) return;
+    if (this.configService.get("s3.enabled") || this.configService.get("s3.disableLocalStorage")) return;
 
     const path = `${SHARE_DIRECTORY}/${shareId}`;
 
@@ -185,6 +247,15 @@ export class ShareService {
         where: { token: reverseShareToken },
         data: { remainingUses: { decrement: 1 } },
       });
+
+      // Send push notification to reverse share creator
+      const shareName = share.name || share.id;
+      void this.notificationService.sendPushNotification(
+        share.reverseShare.creatorId,
+        "Nouveau partage reçu",
+        `Un utilisateur a déposé un partage "${shareName}" via votre lien de partage inversé.`,
+        `/share/${share.id}`,
+      );
     }
 
     const updatedShare = await this.prisma.share.update({
@@ -247,6 +318,7 @@ export class ShareService {
         security: {
           maxViews: share.security?.maxViews,
           passwordProtected: !!share.security?.password,
+          burnAfterReading: share.security?.burnAfterReading ?? false,
         },
       };
     });
@@ -274,6 +346,7 @@ export class ShareService {
     return {
       ...share,
       hasPassword: !!share.security?.password,
+      burnAfterReading: share.security?.burnAfterReading ?? false,
     };
   }
 
@@ -352,6 +425,31 @@ export class ShareService {
 
     const token = await this.generateShareToken(shareId);
     await this.increaseViewCount(share);
+
+    // Burn After Reading: schedule auto-destruction after first access
+    if (share.security?.burnAfterReading) {
+      setTimeout(async () => {
+        try {
+          await this.fileService.deleteAllFiles(shareId);
+          await this.prisma.share.delete({ where: { id: shareId } });
+        } catch (e) {
+          // Share may have already been deleted
+        }
+      }, 30000); // 30 second delay to allow download to complete
+
+      // Notify creator by email if SMTP is enabled
+      if (share.creatorId && this.configService.get("smtp.enabled")) {
+        const creator = await this.prisma.user.findUnique({
+          where: { id: share.creatorId },
+        });
+        if (creator?.email) {
+          this.emailService
+            .sendBurnAfterReadingNotification(creator.email, shareId)
+            .catch(() => {}); // Fire and forget
+        }
+      }
+    }
+
     return token;
   }
 
@@ -405,6 +503,9 @@ export class ShareService {
       content: shareUrl,
       container: "svg-viewbox",
       join: true,
+      color: "#2563eb",
+      background: "#ffffff",
+      ecl: "H",
     });
     return qr.svg();
   }

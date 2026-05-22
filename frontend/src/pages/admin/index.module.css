@@ -1,0 +1,14 @@
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 90px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.item:hover {
+  box-shadow: var(--mantine-shadow-sm) !important;
+  transform: scale(1.01);
+}

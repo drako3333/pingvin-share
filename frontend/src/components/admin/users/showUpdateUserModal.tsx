@@ -7,7 +7,7 @@ import {
   Switch,
   TextInput,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import { ModalsContextProps } from "@mantine/modals/lib/context";
 import { FormattedMessage } from "react-intl";
 import * as yup from "yup";
@@ -47,7 +47,7 @@ const Body = ({
       email: user.email,
       isAdmin: user.isAdmin,
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         email: yup.string().email(t("common.error.invalid-email")),
         username: yup
@@ -61,7 +61,7 @@ const Body = ({
     initialValues: {
       password: "",
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         password: yup
           .string()
@@ -102,7 +102,7 @@ const Body = ({
         </Stack>
       </form>
       <Accordion>
-        <Accordion.Item sx={{ borderBottom: "none" }} value="changePassword">
+        <Accordion.Item style={{ borderBottom: "none" }} value="changePassword">
           <Accordion.Control px={0}>
             <FormattedMessage id="admin.users.edit.update.change-password.title" />
           </Accordion.Control>
@@ -134,7 +134,7 @@ const Body = ({
           </Accordion.Panel>
         </Accordion.Item>
       </Accordion>
-      <Group position="right">
+      <Group justify="flex-end">
         <Button type="submit" form="accountForm">
           <FormattedMessage id="common.button.save" />
         </Button>

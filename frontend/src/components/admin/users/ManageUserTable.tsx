@@ -20,7 +20,7 @@ const ManageUserTable = ({
   const modals = useModals();
 
   return (
-    <Box sx={{ display: "block", overflowX: "auto" }}>
+    <Box style={{ display: "block", overflowX: "auto" }}>
       <Table verticalSpacing="sm">
         <thead>
           <tr>
@@ -50,7 +50,7 @@ const ManageUserTable = ({
                   <td>{user.email}</td>
                   <td>{user.isAdmin && <TbCheck />}</td>
                   <td>
-                    <Group position="right">
+                    <Group justify="flex-end">
                       {user.isLdap ? null : (
                         <ActionIcon
                           variant="light"

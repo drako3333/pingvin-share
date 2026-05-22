@@ -1,8 +1,14 @@
-import { Button, Group, Space, Text, Title, Grid, Paper, createStyles } from "@mantine/core";
-import { useModals } from "@mantine/modals";
+import { Button, Group, Space, Text, Title, Grid, Paper } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import { useEffect, useState } from "react";
 import { FormattedMessage } from "react-intl";
-import { TbArrowLeft, TbLink, TbUsers, TbDatabase, TbDownload } from "react-icons/tb";
+import {
+  TbArrowLeft,
+  TbLink,
+  TbUsers,
+  TbDatabase,
+  TbDownload,
+} from "react-icons/tb";
 import Meta from "../../components/Meta";
 import ManageShareTable from "../../components/admin/shares/ManageShareTable";
 import useTranslate from "../../hooks/useTranslate.hook";
@@ -11,43 +17,11 @@ import { MyShare } from "../../types/share.type";
 import toast from "../../utils/toast.util";
 import { byteToHumanSizeString } from "../../utils/fileSize.util";
 import Link from "next/link";
-
-
-const useStyles = createStyles((theme) => ({
-  card: {
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colorScheme === "dark" ? theme.colors.dark[7] : theme.white,
-    border: `1px solid ${theme.colorScheme === "dark" ? theme.colors.dark[6] : theme.colors.gray[2]
-      }`,
-    boxShadow: theme.shadows.xs,
-    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-    "&:hover": {
-      transform: "translateY(-4px)",
-      boxShadow: theme.shadows.md,
-    },
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: theme.radius.md,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background:
-      theme.colorScheme === "dark"
-        ? theme.fn.rgba(theme.colors[theme.primaryColor][9], 0.2)
-        : theme.colors[theme.primaryColor][0],
-    color: theme.colors[theme.primaryColor][theme.colorScheme === "dark" ? 4 : 7],
-  },
-}));
+import classes from "./shares.module.css";
 
 const Shares = () => {
-  const { classes } = useStyles();
   const [shares, setShares] = useState<MyShare[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const modals = useModals();
   const t = useTranslate();
 
   const getShares = () => {
@@ -95,14 +69,14 @@ const Shares = () => {
   return (
     <>
       <Meta title={t("admin.shares.title")} />
-      <Group position="apart" align="baseline" mb={20}>
+      <Group justify="space-between" align="baseline" mb={20}>
         <div>
           <Button
             component={Link}
             href="/admin"
             variant="subtle"
-            leftIcon={<TbArrowLeft size={16} />}
-            compact
+            leftSection={<TbArrowLeft size={16} />}
+            size="xs"
             mb={10}
           >
             <FormattedMessage id="analytics.back-to-admin" />
@@ -115,11 +89,11 @@ const Shares = () => {
 
       {/* Grid of Dynamic Premium Statistics */}
       <Grid mb={30}>
-        <Grid.Col xs={6} sm={3}>
+        <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
           <Paper className={classes.card}>
-            <Group position="apart">
+            <Group justify="space-between">
               <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
+                <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                   <FormattedMessage id="analytics.shares.totals" />
                 </Text>
                 <Title order={3} mt={5}>
@@ -133,11 +107,11 @@ const Shares = () => {
           </Paper>
         </Grid.Col>
 
-        <Grid.Col xs={6} sm={3}>
+        <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
           <Paper className={classes.card}>
-            <Group position="apart">
+            <Group justify="space-between">
               <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
+                <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                   <FormattedMessage id="analytics.shares.views" />
                 </Text>
                 <Title order={3} mt={5}>
@@ -151,11 +125,11 @@ const Shares = () => {
           </Paper>
         </Grid.Col>
 
-        <Grid.Col xs={6} sm={3}>
+        <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
           <Paper className={classes.card}>
-            <Group position="apart">
+            <Group justify="space-between">
               <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
+                <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                   <FormattedMessage id="analytics.shares.totalsize" />
                 </Text>
                 <Title order={3} mt={5}>
@@ -169,11 +143,11 @@ const Shares = () => {
           </Paper>
         </Grid.Col>
 
-        <Grid.Col xs={6} sm={3}>
+        <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
           <Paper className={classes.card}>
-            <Group position="apart">
+            <Group justify="space-between">
               <div>
-                <Text color="dimmed" size="xs" transform="uppercase" weight={700}>
+                <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
                   <FormattedMessage id="analytics.shares.averagesize" />
                 </Text>
                 <Title order={3} mt={5}>
@@ -192,6 +166,7 @@ const Shares = () => {
         shares={shares}
         deleteShare={deleteShare}
         isLoading={isLoading}
+        refreshShares={getShares}
       />
       <Space h="xl" />
     </>

@@ -1,9 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import * as NodeClam from "clamscan";
-import * as fs from "fs";
 import { FileService } from "src/file/file.service";
 import { PrismaService } from "src/prisma/prisma.service";
-import { CLAMAV_HOST, CLAMAV_PORT, SHARE_DIRECTORY } from "../constants";
+import { CLAMAV_HOST, CLAMAV_PORT } from "../constants";
 
 const clamscanConfig = {
   clamdscan: {
@@ -40,24 +39,31 @@ export class ClamScanService {
 
     const infectedFiles = [];
 
-    const files = fs
-      .readdirSync(`${SHARE_DIRECTORY}/${shareId}`)
-      .filter((file) => file != "archive.zip");
+    const files = await this.prisma.file.findMany({
+      where: { shareId },
+    });
 
-    for (const fileId of files) {
-      const { isInfected } = await clamScan
-        .isInfected(`${SHARE_DIRECTORY}/${shareId}/${fileId}`)
-        .catch(() => {
-          this.logger.log("ClamAV is not active");
-          return { isInfected: false };
-        });
+    for (const file of files) {
+      try {
+        const fileObj = await this.fileService.get(shareId, file.id);
+        if (!fileObj || !fileObj.file) {
+          this.logger.warn(`Could not get stream for file ${file.id} in share ${shareId}`);
+          continue;
+        }
 
-      const fileName = (
-        await this.prisma.file.findUnique({ where: { id: fileId } })
-      ).name;
+        const { isInfected, viruses } = await clamScan
+          .scanStream(fileObj.file)
+          .catch((err) => {
+            this.logger.log(`ClamAV is not active or failed to scan: ${err.message || err}`);
+            return { isInfected: false, viruses: [] };
+          }) as any;
 
-      if (isInfected) {
-        infectedFiles.push({ id: fileId, name: fileName });
+        if (isInfected) {
+          const virusName = (viruses && viruses.length > 0) ? viruses[0] : "Unknown Threat";
+          infectedFiles.push({ id: file.id, name: file.name, virusName });
+        }
+      } catch (err) {
+        this.logger.error(`Error scanning file ${file.id}: ${err.message || err}`);
       }
     }
 
@@ -65,23 +71,33 @@ export class ClamScanService {
   }
 
   async checkAndRemove(shareId: string) {
+    // Exclude scans for registered users / administrators
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+      select: { creatorId: true },
+    });
+
+    if (share && share.creatorId !== null) {
+      this.logger.log(`Skipping antivirus scan for trusted share ${shareId} (created by user ${share.creatorId})`);
+      return;
+    }
+
     const infectedFiles = await this.check(shareId);
 
     if (infectedFiles.length > 0) {
-      await this.fileService.deleteAllFiles(shareId);
-      await this.prisma.file.deleteMany({ where: { shareId } });
-
-      const fileNames = infectedFiles.map((file) => file.name).join(", ");
-
-      await this.prisma.share.update({
-        where: { id: shareId },
-        data: {
-          removedReason: `Your share got removed because the file(s) ${fileNames} are malicious.`,
-        },
-      });
+      // Mark files as suspect in database instead of deleting the share
+      for (const inf of infectedFiles) {
+        await this.prisma.file.update({
+          where: { id: inf.id },
+          data: {
+            isSuspect: true,
+            virusName: inf.virusName,
+          },
+        });
+      }
 
       this.logger.warn(
-        `Share ${shareId} deleted because it contained ${infectedFiles.length} malicious file(s)`,
+        `Share ${shareId} flagged as suspect because it contained ${infectedFiles.length} flagged file(s)`,
       );
     }
   }

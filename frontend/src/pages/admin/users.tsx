@@ -60,14 +60,14 @@ const Users = () => {
   return (
     <>
       <Meta title={t("admin.users.title")} />
-      <Group position="apart" align="baseline" mb={20}>
+      <Group justify="space-between" align="baseline" mb={20}>
         <div>
           <Button
             component={Link}
             href="/admin"
             variant="subtle"
-            leftIcon={<TbArrowLeft size={16} />}
-            compact
+            leftSection={<TbArrowLeft size={16} />}
+            size="xs"
             mb={10}
           >
             Retour à l'administration
@@ -80,7 +80,7 @@ const Users = () => {
           onClick={() =>
             showCreateUserModal(modals, config.get("smtp.enabled"), getUsers)
           }
-          leftIcon={<TbPlus size={20} />}
+          leftSection={<TbPlus size={20} />}
         >
           <FormattedMessage id="common.button.create" />
         </Button>

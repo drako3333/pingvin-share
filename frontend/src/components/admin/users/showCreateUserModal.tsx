@@ -6,7 +6,7 @@ import {
   Switch,
   TextInput,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import { ModalsContextProps } from "@mantine/modals/lib/context";
 import { FormattedMessage } from "react-intl";
 import * as yup from "yup";
@@ -45,7 +45,7 @@ const Body = ({
       isAdmin: false,
       setPasswordManually: false,
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         email: yup.string().email(t("common.error.invalid-email")),
         username: yup
@@ -113,7 +113,7 @@ const Body = ({
             description={t("admin.users.modal.create.admin.description")}
             {...form.getInputProps("isAdmin", { type: "checkbox" })}
           />
-          <Group position="right">
+          <Group justify="flex-end">
             <Button type="submit">
               <FormattedMessage id="common.button.create" />
             </Button>

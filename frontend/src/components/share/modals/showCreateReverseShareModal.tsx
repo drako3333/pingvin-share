@@ -1,6 +1,5 @@
 import {
   Button,
-  Col,
   Grid,
   Group,
   NumberInput,
@@ -9,7 +8,7 @@ import {
   Switch,
   Text,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import { useModals } from "@mantine/modals";
 import { ModalsContextProps } from "@mantine/modals/lib/context";
 import { getCookie, setCookie } from "cookies-next";
@@ -67,7 +66,7 @@ const Body = ({
       simplified: !!(getCookie("reverse-share.simplified") ?? false),
       publicAccess: !!(getCookie("reverse-share.public-access") ?? true),
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         maxUseCount: yup
           .number()
@@ -130,17 +129,18 @@ const Body = ({
         <Stack align="stretch">
           <div>
             <Grid align={form.errors.expiration_num ? "center" : "flex-end"}>
-              <Col xs={6}>
+              <Grid.Col span={{ base: 12, xs: 6 }}>
                 <NumberInput
                   min={1}
                   max={99999}
-                  precision={0}
+                  decimalScale={0}
+                  allowDecimal={false}
                   variant="filled"
                   label={t("account.reverseShares.modal.expiration.label")}
                   {...form.getInputProps("expiration_num")}
                 />
-              </Col>
-              <Col xs={6}>
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, xs: 6 }}>
                 <Select
                   {...form.getInputProps("expiration_unit")}
                   data={[
@@ -189,16 +189,9 @@ const Body = ({
                     },
                   ]}
                 />
-              </Col>
+              </Grid.Col>
             </Grid>
-            <Text
-              mt="sm"
-              italic
-              size="xs"
-              sx={(theme) => ({
-                color: theme.colors.gray[6],
-              })}
-            >
+            <Text mt="sm" style={{ fontStyle: "italic" }} size="xs" c="dimmed">
               {getExpirationPreview(
                 {
                   expiresOn: t("account.reverseShare.expires-on"),
@@ -216,7 +209,8 @@ const Body = ({
           <NumberInput
             min={1}
             max={1000}
-            precision={0}
+            decimalScale={0}
+            allowDecimal={false}
             variant="filled"
             label={t("account.reverseShares.modal.max-use.label")}
             description={t("account.reverseShares.modal.max-use.description")}

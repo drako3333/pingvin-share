@@ -1,0 +1,23 @@
+.root {
+  padding-top: 80px;
+  padding-bottom: 80px;
+}
+
+.label {
+  text-align: center;
+  font-weight: 900;
+  font-size: 220px;
+  line-height: 1;
+  margin-bottom: 20px;
+  color: var(--mantine-color-gray-2);
+}
+
+[data-mantine-color-scheme="dark"] .label {
+  color: var(--mantine-color-dark-4);
+}
+
+@media (max-width: 48em) {
+  .label {
+    font-size: 120px;
+  }
+}

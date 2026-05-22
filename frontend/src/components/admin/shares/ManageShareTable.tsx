@@ -1,40 +1,45 @@
-import {
-  ActionIcon,
-  Box,
-  Group,
-  MediaQuery,
-  Skeleton,
-  Table,
-  Text,
-} from "@mantine/core";
+import { ActionIcon, Box, Group, Skeleton, Table, Text, Badge, Button, Stack } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { useModals } from "@mantine/modals";
 import moment from "moment";
 import Link from "next/link";
-import { TbChartBar, TbLink, TbTrash } from "react-icons/tb";
+import { TbChartBar, TbLink, TbTrash, TbAlertTriangle } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import useTranslate from "../../../hooks/useTranslate.hook";
 import { MyShare } from "../../../types/share.type";
 import { byteToHumanSizeString } from "../../../utils/fileSize.util";
 import toast from "../../../utils/toast.util";
 import showShareLinkModal from "../../account/showShareLinkModal";
+import shareService from "../../../services/share.service";
 
 const ManageShareTable = ({
   shares,
   deleteShare,
   isLoading,
+  refreshShares,
 }: {
   shares: MyShare[];
   // eslint-disable-next-line no-unused-vars
   deleteShare: (share: MyShare) => void;
   isLoading: boolean;
+  refreshShares?: () => void;
 }) => {
   const modals = useModals();
   const clipboard = useClipboard();
   const t = useTranslate();
 
+  const handleApprove = (shareId: string, fileId: string, fileName: string) => {
+    shareService
+      .approveFile(shareId, fileId)
+      .then(() => {
+        toast.success(`Le fichier "${fileName}" a été approuvé avec succès.`);
+        if (refreshShares) refreshShares();
+      })
+      .catch(toast.axiosError);
+  };
+
   return (
-    <Box sx={{ display: "block", overflowX: "auto" }}>
+    <Box style={{ display: "block", overflowX: "auto" }}>
       <Table verticalSpacing="sm">
         <thead>
           <tr>
@@ -65,7 +70,49 @@ const ManageShareTable = ({
             : shares.map((share) => (
                 <tr key={share.id}>
                   <td>{share.id}</td>
-                  <td>{share.name}</td>
+                  <td>
+                    <Group gap="xs" align="center">
+                      <Text fw={500}>{share.name || share.id}</Text>
+                    </Group>
+                    {share.files && share.files.some((f: any) => f.isSuspect && !f.isApproved) && (
+                      <Stack gap={4} mt={6} style={{ maxWidth: "450px" }}>
+                        {share.files.filter((f: any) => f.isSuspect && !f.isApproved).map((file: any) => (
+                          <Group
+                            key={file.id}
+                            gap="xs"
+                            wrap="nowrap"
+                            style={{
+                              background: "rgba(250, 82, 82, 0.08)",
+                              border: "1px dashed var(--mantine-color-red-3)",
+                              borderRadius: "6px",
+                              padding: "4px 8px",
+                              justifyContent: "space-between",
+                              width: "100%"
+                            }}
+                          >
+                            <Group gap={6} wrap="nowrap">
+                              <TbAlertTriangle size={14} style={{ color: "var(--mantine-color-red-6)", flexShrink: 0 }} />
+                              <Text size="xs" color="red" fw={500} style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "220px" }}>
+                                {file.name}
+                              </Text>
+                              <Badge color="red" variant="light" size="xs" style={{ flexShrink: 0 }}>
+                                {file.virusName || "Suspect"}
+                              </Badge>
+                            </Group>
+                            <Button
+                              size="xs"
+                              color="teal"
+                              variant="light"
+                              style={{ height: 20, padding: "0 8px", fontSize: "0.7rem", flexShrink: 0 }}
+                              onClick={() => handleApprove(share.id, file.id, file.name)}
+                            >
+                              Approuver
+                            </Button>
+                          </Group>
+                        ))}
+                      </Stack>
+                    )}
+                  </td>
                   <td>
                     {share.creator ? (
                       share.creator.username
@@ -81,7 +128,7 @@ const ManageShareTable = ({
                       : moment(share.expiration).format("LLL")}
                   </td>
                   <td>
-                    <Group position="right">
+                    <Group justify="flex-end">
                       <ActionIcon
                         component={Link}
                         href={`/share/${share.id}/analytics`}
@@ -132,11 +179,9 @@ const skeletonRows = [...Array(10)].map((v, i) => (
     <td>
       <Skeleton key={i} height={20} />
     </td>
-    <MediaQuery smallerThan="md" styles={{ display: "none" }}>
-      <td>
-        <Skeleton key={i} height={20} />
-      </td>
-    </MediaQuery>
+    <Box component="td" visibleFrom="md">
+      <Skeleton key={i} height={20} />
+    </Box>
     <td>
       <Skeleton key={i} height={20} />
     </td>

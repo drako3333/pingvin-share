@@ -3,19 +3,19 @@ import {
   Alert,
   Button,
   Checkbox,
-  Col,
   Grid,
   Group,
-  MultiSelect,
   NumberInput,
   PasswordInput,
   Select,
   Stack,
+  Switch,
+  TagsInput,
   Text,
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import { useModals } from "@mantine/modals";
 import { ModalsContextProps } from "@mantine/modals/lib/context";
 import moment from "moment";
@@ -162,8 +162,9 @@ const CreateUploadModalBody = ({
       expiration_num: 1,
       expiration_unit: "-days",
       never_expires: false,
+      burnAfterReading: false,
     },
-    validate: yupResolver(validationSchema),
+    validate: schemaResolver(validationSchema),
   });
 
   const onSubmit = form.onSubmit(async (values) => {
@@ -212,7 +213,10 @@ const CreateUploadModalBody = ({
           description: values.description,
           security: {
             password: values.password || undefined,
-            maxViews: values.maxViews || undefined,
+            maxViews: values.burnAfterReading
+              ? 1
+              : values.maxViews || undefined,
+            burnAfterReading: values.burnAfterReading || undefined,
           },
         },
         files,
@@ -258,31 +262,25 @@ const CreateUploadModalBody = ({
             </Button>
           </Group>
 
-          <Text
-            truncate
-            italic
-            size="xs"
-            sx={(theme) => ({
-              color: theme.colors.gray[6],
-            })}
-          >
+          <Text truncate style={{ fontStyle: "italic" }} size="xs" c="dimmed">
             {`${window.location.origin}/s/${form.values.link}`}
           </Text>
           {!options.isReverseShare && (
             <>
               <Grid align={form.errors.expiration_num ? "center" : "flex-end"}>
-                <Col xs={6}>
+                <Grid.Col span={{ base: 12, xs: 6 }}>
                   <NumberInput
                     min={1}
                     max={99999}
-                    precision={0}
+                    decimalScale={0}
+                    allowDecimal={false}
                     variant="filled"
                     label={t("upload.modal.expires.label")}
                     disabled={form.values.never_expires}
                     {...form.getInputProps("expiration_num")}
                   />
-                </Col>
-                <Col xs={6}>
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, xs: 6 }}>
                   <Select
                     disabled={form.values.never_expires}
                     {...form.getInputProps("expiration_unit")}
@@ -331,7 +329,7 @@ const CreateUploadModalBody = ({
                       },
                     ]}
                   />
-                </Col>
+                </Grid.Col>
               </Grid>
               {options.maxExpiration.value == 0 && (
                 <Checkbox
@@ -339,13 +337,7 @@ const CreateUploadModalBody = ({
                   {...form.getInputProps("never_expires")}
                 />
               )}
-              <Text
-                italic
-                size="xs"
-                sx={(theme) => ({
-                  color: theme.colors.gray[6],
-                })}
-              >
+              <Text style={{ fontStyle: "italic" }} size="xs" c="dimmed">
                 {getExpirationPreview(
                   {
                     neverExpires: t("upload.modal.completed.never-expires"),
@@ -357,7 +349,10 @@ const CreateUploadModalBody = ({
             </>
           )}
           <Accordion>
-            <Accordion.Item value="description" sx={{ borderBottom: "none" }}>
+            <Accordion.Item
+              value="description"
+              style={{ borderBottom: "none" }}
+            >
               <Accordion.Control>
                 <FormattedMessage id="upload.modal.accordion.name-and-description.title" />
               </Accordion.Control>
@@ -381,60 +376,46 @@ const CreateUploadModalBody = ({
               </Accordion.Panel>
             </Accordion.Item>
             {options.enableEmailRecepients && (
-              <Accordion.Item value="recipients" sx={{ borderBottom: "none" }}>
+              <Accordion.Item
+                value="recipients"
+                style={{ borderBottom: "none" }}
+              >
                 <Accordion.Control>
                   <FormattedMessage id="upload.modal.accordion.email.title" />
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <MultiSelect
+                  <TagsInput
                     data={form.values.recipients}
                     placeholder={t("upload.modal.accordion.email.placeholder")}
-                    searchable
-                    creatable
                     id="recipient-emails"
                     inputMode="email"
-                    getCreateLabel={(query) => `+ ${query}`}
-                    onCreate={(query) => {
-                      if (!query.match(/^\S+@\S+\.\S+$/)) {
+                    splitChars={[",", ";", " "]}
+                    value={form.values.recipients}
+                    onChange={(tags) => {
+                      const invalidTags = tags.filter(
+                        (tag) => !/^\S+@\S+\.\S+$/.test(tag),
+                      );
+                      if (invalidTags.length > 0) {
                         form.setFieldError(
                           "recipients",
                           t("upload.modal.accordion.email.invalid-email"),
                         );
+                        const validTags = tags.filter((tag) =>
+                          /^\S+@\S+\.\S+$/.test(tag),
+                        );
+                        form.setFieldValue("recipients", validTags);
                       } else {
                         form.setFieldError("recipients", null);
-                        form.setFieldValue("recipients", [
-                          ...form.values.recipients,
-                          query,
-                        ]);
-                        return query;
+                        form.setFieldValue("recipients", tags);
                       }
                     }}
-                    {...form.getInputProps("recipients")}
-                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                      // Add email on comma or semicolon
-                      if (e.key === "Enter" || e.key === "," || e.key === ";") {
-                        e.preventDefault();
-                        const inputValue = (
-                          e.target as HTMLInputElement
-                        ).value.trim();
-                        if (inputValue.match(/^\S+@\S+\.\S+$/)) {
-                          form.setFieldValue("recipients", [
-                            ...form.values.recipients,
-                            inputValue,
-                          ]);
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      } else if (e.key === " ") {
-                        e.preventDefault();
-                        (e.target as HTMLInputElement).value = "";
-                      }
-                    }}
+                    error={form.errors.recipients}
                   />
                 </Accordion.Panel>
               </Accordion.Item>
             )}
 
-            <Accordion.Item value="security" sx={{ borderBottom: "none" }}>
+            <Accordion.Item value="security" style={{ borderBottom: "none" }}>
               <Accordion.Control>
                 <FormattedMessage id="upload.modal.accordion.security.title" />
               </Accordion.Control>
@@ -449,16 +430,40 @@ const CreateUploadModalBody = ({
                     autoComplete="new-password"
                     {...form.getInputProps("password")}
                   />
-                  <NumberInput
-                    min={1}
-                    type="number"
-                    variant="filled"
-                    placeholder={t(
-                      "upload.modal.accordion.security.max-views.placeholder",
+                  <Switch
+                    label={t(
+                      "upload.modal.accordion.security.burn-after-reading.label",
                     )}
-                    label={t("upload.modal.accordion.security.max-views.label")}
-                    {...form.getInputProps("maxViews")}
+                    description={t(
+                      "upload.modal.accordion.security.burn-after-reading.description",
+                    )}
+                    color="red"
+                    {...form.getInputProps("burnAfterReading", {
+                      type: "checkbox",
+                    })}
                   />
+                  {form.values.burnAfterReading && (
+                    <Alert
+                      color="orange"
+                      variant="light"
+                      icon={<TbAlertCircle size={16} />}
+                    >
+                      {t("share.burn-after-reading.warning")}
+                    </Alert>
+                  )}
+                  {!form.values.burnAfterReading && (
+                    <NumberInput
+                      min={1}
+                      variant="filled"
+                      placeholder={t(
+                        "upload.modal.accordion.security.max-views.placeholder",
+                      )}
+                      label={t(
+                        "upload.modal.accordion.security.max-views.label",
+                      )}
+                      {...form.getInputProps("maxViews")}
+                    />
+                  )}
                 </Stack>
               </Accordion.Panel>
             </Accordion.Item>
@@ -507,7 +512,7 @@ const SimplifiedCreateUploadModalModal = ({
       name: undefined,
       description: undefined,
     },
-    validate: yupResolver(validationSchema),
+    validate: schemaResolver(validationSchema),
   });
 
   const onSubmit = form.onSubmit(async (values) => {

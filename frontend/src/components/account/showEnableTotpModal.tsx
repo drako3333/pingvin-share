@@ -8,7 +8,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import { useModals } from "@mantine/modals";
 import { ModalsContextProps } from "@mantine/modals/lib/context";
 import { FormattedMessage } from "react-intl";
@@ -64,7 +64,7 @@ const CreateEnableTotpModal = ({
     initialValues: {
       code: "",
     },
-    validate: yupResolver(validationSchema),
+    validate: schemaResolver(validationSchema),
   });
 
   return (

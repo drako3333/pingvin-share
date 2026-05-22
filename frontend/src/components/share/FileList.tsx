@@ -6,11 +6,20 @@ import {
   Stack,
   Table,
   TextInput,
+  Text,
 } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { useModals } from "@mantine/modals";
 import React, { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { TbDownload, TbEye, TbLink, TbFolder, TbFolderOpen, TbFile } from "react-icons/tb";
+import {
+  TbDownload,
+  TbEye,
+  TbLink,
+  TbFolder,
+  TbFolderOpen,
+  TbFile,
+  TbAlertTriangle,
+} from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import useTranslate from "../../hooks/useTranslate.hook";
 import shareService from "../../services/share.service";
@@ -38,7 +47,12 @@ interface TreeFolderNode {
 type TreeNode = TreeFileNode | TreeFolderNode;
 
 function buildTree(files: FileMetaData[]): TreeNode[] {
-  const root: TreeFolderNode = { type: "folder", name: "", fullName: "", children: [] };
+  const root: TreeFolderNode = {
+    type: "folder",
+    name: "",
+    fullName: "",
+    children: [],
+  };
 
   for (const file of files) {
     const parts = file.name.split("/");
@@ -57,11 +71,13 @@ function buildTree(files: FileMetaData[]): TreeNode[] {
         });
       } else {
         let folder = current.children.find(
-          (child) => child.type === "folder" && child.name === part
+          (child) => child.type === "folder" && child.name === part,
         ) as TreeFolderNode;
 
         if (!folder) {
-          const nestedFullName = current.fullName ? `${current.fullName}/${part}` : part;
+          const nestedFullName = current.fullName
+            ? `${current.fullName}/${part}`
+            : part;
           folder = {
             type: "folder",
             name: part,
@@ -135,6 +151,46 @@ const FileList = ({
     }
   };
 
+  const handleDownload = async (file: FileMetaData) => {
+    if (file.isSuspect && !file.isApproved) {
+      modals.openConfirmModal({
+        title: (
+          <Group gap="xs">
+            <TbAlertTriangle size={22} style={{ color: "var(--mantine-color-red-6)" }} />
+            <Text style={{ fontWeight: 700, fontSize: "1.1rem", color: "var(--mantine-color-red-6)" }}>
+              Avertissement de sécurité
+            </Text>
+          </Group>
+        ),
+        children: (
+          <Stack gap="xs" p="xs">
+            <Text size="sm">
+              Ce fichier (<strong>{file.name}</strong>) a été détecté comme suspect par l'analyse antivirus ClamAV.
+            </Text>
+            {file.virusName && (
+              <Box style={{ background: "rgba(224, 49, 49, 0.08)", borderLeft: "4px solid var(--mantine-color-red-6)", padding: "10px", borderRadius: "4px" }}>
+                <Text size="xs" style={{ color: "var(--mantine-color-red-6)", fontFamily: "monospace", fontWeight: 700 }}>
+                  Menace signalée : {file.virusName}
+                </Text>
+              </Box>
+            )}
+            <Text size="xs" color="dimmed" mt="sm">
+              Certains outils tiers (cracks, patches, fichiers de configuration de dev) sont parfois considérés faussement comme suspects. Si vous connaissez l'auteur et faites pleinement confiance à ce fichier, vous pouvez ignorer cette alerte. Sinon, annulez immédiatement.
+            </Text>
+          </Stack>
+        ),
+        labels: { confirm: "Ignorer et télécharger", cancel: "Annuler" },
+        confirmProps: { color: "red", radius: "md" },
+        cancelProps: { variant: "subtle", radius: "md" },
+        onConfirm: async () => {
+          await shareService.downloadFile(share.id, file.id);
+        },
+      });
+    } else {
+      await shareService.downloadFile(share.id, file.id);
+    }
+  };
+
   const copyFileLink = (file: FileMetaData) => {
     const link = `${window.location.origin}/api/shares/${
       share.id
@@ -166,7 +222,7 @@ const FileList = ({
       if (node.type === "folder") {
         const isExpanded = expanded[node.fullName] !== false; // Expanded by default
         const toggleExpand = () => {
-          setExpanded(prev => ({ ...prev, [node.fullName]: !isExpanded }));
+          setExpanded((prev) => ({ ...prev, [node.fullName]: !isExpanded }));
         };
 
         const getFolderSize = (n: TreeFolderNode): number => {
@@ -189,8 +245,12 @@ const FileList = ({
             style={{ cursor: "pointer", background: "rgba(0,0,0,0.01)" }}
           >
             <td>
-              <Group spacing="xs" style={{ paddingLeft: depth * 20 }}>
-                {isExpanded ? <TbFolderOpen size={20} style={{ color: "#228be6" }} /> : <TbFolder size={20} style={{ color: "#228be6" }} />}
+              <Group gap="xs" style={{ paddingLeft: depth * 20 }}>
+                {isExpanded ? (
+                  <TbFolderOpen size={20} style={{ color: "#228be6" }} />
+                ) : (
+                  <TbFolder size={20} style={{ color: "#228be6" }} />
+                )}
                 <span style={{ fontWeight: 600 }}>{node.name}</span>
               </Group>
             </td>
@@ -200,7 +260,7 @@ const FileList = ({
               </span>
             </td>
             <td></td>
-          </tr>
+          </tr>,
         );
 
         if (isExpanded) {
@@ -208,21 +268,38 @@ const FileList = ({
         }
       } else {
         const file = node.file;
+        const isFileSuspect = file.isSuspect && !file.isApproved;
         rows.push(
           <tr key={node.fullName}>
             <td>
-              <Group spacing="xs" style={{ paddingLeft: depth * 20 }}>
-                <TbFile size={18} style={{ color: "gray" }} />
-                <span>{node.name}</span>
+              <Group gap="xs" style={{ paddingLeft: depth * 20 }}>
+                {isFileSuspect ? (
+                  <TbAlertTriangle size={18} style={{ color: "var(--mantine-color-red-6)" }} />
+                ) : (
+                  <TbFile size={18} style={{ color: "gray" }} />
+                )}
+                <span style={isFileSuspect ? { color: "var(--mantine-color-red-6)", fontWeight: 600 } : undefined}>
+                  {node.name}
+                </span>
+                {isFileSuspect && (
+                  <span style={{ fontSize: "0.75rem", color: "var(--mantine-color-red-6)", fontStyle: "italic" }}>
+                    (Suspect: {file.virusName || "Menace"})
+                  </span>
+                )}
               </Group>
             </td>
             <td>{byteToHumanSizeString(parseInt(file.size))}</td>
             <td>
-              <Group position="right">
+              <Group justify="flex-end">
                 {shareService.doesFileSupportPreview(file.name) && (
                   <ActionIcon
                     onClick={() =>
-                      showFilePreviewModal(share.id, files || [], file.id, modals)
+                      showFilePreviewModal(
+                        share.id,
+                        files || [],
+                        file.id,
+                        modals,
+                      )
                     }
                     size={25}
                   >
@@ -230,24 +307,19 @@ const FileList = ({
                   </ActionIcon>
                 )}
                 {!share.hasPassword && (
-                  <ActionIcon
-                    size={25}
-                    onClick={() => copyFileLink(file)}
-                  >
+                  <ActionIcon size={25} onClick={() => copyFileLink(file)}>
                     <TbLink />
                   </ActionIcon>
                 )}
                 <ActionIcon
                   size={25}
-                  onClick={async () => {
-                    await shareService.downloadFile(share.id, file.id);
-                  }}
+                  onClick={() => handleDownload(file)}
                 >
                   <TbDownload />
                 </ActionIcon>
               </Group>
             </td>
-          </tr>
+          </tr>,
         );
       }
     }
@@ -256,18 +328,18 @@ const FileList = ({
   };
 
   return (
-    <Box sx={{ display: "block", overflowX: "auto" }}>
+    <Box style={{ display: "block", overflowX: "auto" }}>
       <Table>
         <thead>
           <tr>
             <th>
-              <Group spacing="xs">
+              <Group gap="xs">
                 <FormattedMessage id="share.table.name" />
                 <TableSortIcon sort={sort} setSort={setSort} property="name" />
               </Group>
             </th>
             <th>
-              <Group spacing="xs">
+              <Group gap="xs">
                 <FormattedMessage id="share.table.size" />
                 <TableSortIcon sort={sort} setSort={setSort} property="size" />
               </Group>
@@ -275,9 +347,7 @@ const FileList = ({
             <th></th>
           </tr>
         </thead>
-        <tbody>
-          {isLoading ? skeletonRows : renderRows(treeData)}
-        </tbody>
+        <tbody>{isLoading ? skeletonRows : renderRows(treeData)}</tbody>
       </Table>
     </Box>
   );

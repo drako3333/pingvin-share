@@ -53,15 +53,15 @@ const MyShares = () => {
   return (
     <>
       <Meta title={t("account.reverseShares.title")} />
-      <Group position="apart" align="baseline" mb={20}>
-        <Group align="center" spacing={3} mb={30}>
+      <Group justify="space-between" align="baseline" mb={20}>
+        <Group align="center" gap={3} mb={30}>
           <Title order={3}>
             <FormattedMessage id="account.reverseShares.title" />
           </Title>
           <Tooltip
             position="bottom"
             multiline
-            width={220}
+            w={220}
             label={t("account.reverseShares.description")}
             events={{ hover: true, focus: false, touch: true }}
           >
@@ -79,14 +79,14 @@ const MyShares = () => {
               getReverseShares,
             )
           }
-          leftIcon={<TbPlus size={20} />}
+          leftSection={<TbPlus size={20} />}
         >
           <FormattedMessage id="common.button.create" />
         </Button>
       </Group>
       {reverseShares.length == 0 ? (
         <Center style={{ height: "70vh" }}>
-          <Stack align="center" spacing={10}>
+          <Stack align="center" gap={10}>
             <Title order={3}>
               <FormattedMessage id="account.reverseShares.title.empty" />
             </Title>
@@ -96,7 +96,7 @@ const MyShares = () => {
           </Stack>
         </Center>
       ) : (
-        <Box sx={{ display: "block", overflowX: "auto" }}>
+        <Box style={{ display: "block", overflowX: "auto" }}>
           <Table>
             <thead>
               <tr>
@@ -127,7 +127,7 @@ const MyShares = () => {
                       <Accordion>
                         <Accordion.Item
                           value="customization"
-                          sx={{ borderBottom: "none" }}
+                          style={{ borderBottom: "none" }}
                         >
                           <Accordion.Control p={0}>
                             <Text size="sm">
@@ -187,7 +187,7 @@ const MyShares = () => {
                       : moment(reverseShare.shareExpiration).format("LLL")}
                   </td>
                   <td>
-                    <Group position="right">
+                    <Group justify="flex-end">
                       <ActionIcon
                         color="victoria"
                         variant="light"

@@ -18,7 +18,11 @@ const showFilePreviewModal = (
     },
     withCloseButton: true,
     children: (
-      <FilePreview shareId={shareId} files={files} initialFileId={initialFileId} />
+      <FilePreview
+        shareId={shareId}
+        files={files}
+        initialFileId={initialFileId}
+      />
     ),
   });
 };

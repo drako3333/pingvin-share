@@ -1,0 +1,281 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+
+/* Global Font defaults */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  transition: background-color 0.3s ease;
+}
+
+/* Titles and Headers styling */
+h1, h2, h3, h4, h5, h6,
+.mantine-Title-root {
+  font-family: 'Space Grotesk', sans-serif !important;
+  letter-spacing: -0.02em !important;
+  font-weight: 700 !important;
+}
+
+/* Monospace data elements */
+.mantine-Badge-root,
+.mantine-Code-root,
+code,
+pre,
+.monospace-data,
+[data-monospace="true"] {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Technical Grid backgrounds */
+[data-mantine-color-scheme="dark"] body {
+  background-color: #0b0c10 !important;
+  background-image: 
+    linear-gradient(rgba(148, 163, 184, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+}
+
+[data-mantine-color-scheme="light"] body {
+  background-color: #f8fafc !important;
+  background-image: 
+    linear-gradient(rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.012) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+}
+
+/* Card, Paper, and Modal styles for Dark Theme */
+[data-mantine-color-scheme="dark"] .mantine-Card-root,
+[data-mantine-color-scheme="dark"] .mantine-Paper-root,
+[data-mantine-color-scheme="dark"] .mantine-Modal-content {
+  background-color: rgba(13, 15, 23, 0.88) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Card-root:hover,
+[data-mantine-color-scheme="dark"] .mantine-Paper-root:hover {
+  border-color: rgba(37, 99, 235, 0.5) !important;
+  box-shadow: 0 4px 24px 0 rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Card, Paper, and Modal styles for Light Theme */
+[data-mantine-color-scheme="light"] .mantine-Card-root,
+[data-mantine-color-scheme="light"] .mantine-Paper-root,
+[data-mantine-color-scheme="light"] .mantine-Modal-content {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 20px 0 rgba(15, 23, 42, 0.04) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+[data-mantine-color-scheme="light"] .mantine-Card-root:hover,
+[data-mantine-color-scheme="light"] .mantine-Paper-root:hover {
+  border-color: rgba(37, 99, 235, 0.3) !important;
+  box-shadow: 0 4px 24px 0 rgba(37, 99, 235, 0.06) !important;
+}
+
+/* Inputs and Forms styling */
+.mantine-Input-input {
+  border-radius: 6px !important;
+  font-family: 'Inter', sans-serif !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Input-input {
+  background-color: rgba(20, 22, 33, 0.6) !important;
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-Input-input:focus {
+  border-color: var(--mantine-color-victoria-5) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25) !important;
+}
+
+[data-mantine-color-scheme="light"] .mantine-Input-input {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+[data-mantine-color-scheme="light"] .mantine-Input-input:focus {
+  border-color: var(--mantine-color-victoria-5) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Monospace for numbers and progress indicators */
+.mantine-Text-root[color="blue"],
+.mantine-Text-root[class*="Upload_speed"],
+.mantine-Text-root[class*="FileList_"],
+.mantine-Progress-label {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Table overrides */
+table.md,
+table.md th:nth-of-type(odd),
+table.md td:nth-of-type(odd) {
+  background: rgba(220, 220, 220, 0.3);
+}
+
+[data-mantine-color-scheme="dark"] table.md,
+[data-mantine-color-scheme="dark"] table.md th:nth-of-type(odd),
+[data-mantine-color-scheme="dark"] table.md td:nth-of-type(odd) {
+  background: rgba(30, 41, 59, 0.4);
+}
+
+table.md td {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+/* ========================================== */
+/*   Technical Architecture Table Styling      */
+/* ========================================== */
+
+/* Base Table & Container */
+table:not(.md),
+.mantine-Table-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  width: 100% !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  background-color: rgba(13, 15, 23, 0.6) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-mantine-color-scheme="light"] table:not(.md),
+[data-mantine-color-scheme="light"] .mantine-Table-table {
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.03) !important;
+}
+
+/* Remove table border & box-shadow when nested inside a Card/Paper (e.g. Audit Logs) */
+.mantine-Card-root table:not(.md),
+.mantine-Card-root .mantine-Table-table,
+.mantine-Paper-root table:not(.md),
+.mantine-Paper-root .mantine-Table-table {
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+}
+
+/* Header Styles */
+table:not(.md) thead th,
+.mantine-Table-th,
+table:not(.md) thead td {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: rgba(241, 245, 249, 0.85) !important;
+  background-color: rgba(148, 163, 184, 0.06) !important;
+  border-bottom: 2px solid rgba(148, 163, 184, 0.25) !important;
+  padding: 12px 16px !important;
+  text-align: left;
+}
+
+[data-mantine-color-scheme="light"] table:not(.md) thead th,
+[data-mantine-color-scheme="light"] .mantine-Table-th,
+[data-mantine-color-scheme="light"] table:not(.md) thead td {
+  color: rgba(15, 23, 42, 0.8) !important;
+  background-color: rgba(15, 23, 42, 0.03) !important;
+  border-bottom: 2px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Body Cells & Dividers */
+table:not(.md) tbody td,
+.mantine-Table-td {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+  color: #e2e8f0 !important;
+  font-size: 14px !important;
+  vertical-align: middle !important;
+}
+
+[data-mantine-color-scheme="light"] table:not(.md) tbody td,
+[data-mantine-color-scheme="light"] .mantine-Table-td {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+  color: #334155 !important;
+}
+
+/* Row separation and background alignment */
+table:not(.md) tbody tr,
+.mantine-Table-tr {
+  background-color: transparent;
+  transition: background-color 0.15s ease !important;
+}
+
+/* Alternating rows (Zebra Striping) */
+table:not(.md) tbody tr:nth-of-type(even),
+.mantine-Table-tbody tr:nth-of-type(even) {
+  background-color: rgba(255, 255, 255, 0.015) !important;
+}
+
+[data-mantine-color-scheme="light"] table:not(.md) tbody tr:nth-of-type(even),
+[data-mantine-color-scheme="light"] .mantine-Table-tbody tr:nth-of-type(even) {
+  background-color: rgba(0, 0, 0, 0.012) !important;
+}
+
+/* Dynamic Hover Highlighting with Technical Cobalt Hue */
+table:not(.md) tbody tr:hover,
+.mantine-Table-tr:hover {
+  background-color: rgba(37, 99, 235, 0.06) !important;
+}
+
+[data-mantine-color-scheme="light"] table:not(.md) tbody tr:hover,
+[data-mantine-color-scheme="light"] .mantine-Table-tr:hover {
+  background-color: rgba(37, 99, 235, 0.03) !important;
+}
+
+/* Remove bottom border on the final row to match border radius */
+table:not(.md) tbody tr:last-of-type td,
+.mantine-Table-tbody tr:last-of-type td {
+  border-bottom: none !important;
+}
+
+/* AppShell Layout styles for Dark Theme */
+[data-mantine-color-scheme="dark"] .mantine-AppShell-header {
+  background-color: rgba(9, 10, 15, 0.8) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+[data-mantine-color-scheme="dark"] .mantine-AppShell-navbar {
+  background-color: rgba(9, 10, 15, 0.6) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+/* AppShell Layout styles for Light Theme */
+[data-mantine-color-scheme="light"] .mantine-AppShell-header {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-mantine-color-scheme="light"] .mantine-AppShell-navbar {
+  background-color: rgba(248, 250, 252, 0.6) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+}

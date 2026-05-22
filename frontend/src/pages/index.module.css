@@ -1,0 +1,70 @@
+.inner {
+  display: flex;
+  justify-content: space-between;
+  padding-top: calc(var(--mantine-spacing-md) * 4);
+  padding-bottom: calc(var(--mantine-spacing-md) * 4);
+  align-items: center;
+}
+
+.content {
+  max-width: 520px;
+  margin-right: calc(var(--mantine-spacing-md) * 3);
+}
+
+@media (max-width: 62em) {
+  .content {
+    max-width: 100%;
+    margin-right: 0;
+  }
+}
+
+.title {
+  color: var(--mantine-color-black);
+  font-size: 48px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+
+[data-mantine-color-scheme="dark"] .title {
+  color: #f8fafc;
+}
+
+@media (max-width: 36em) {
+  .title {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 36em) {
+  .control {
+    flex: 1;
+  }
+}
+
+@media (max-width: 62em) {
+  .image {
+    display: none;
+  }
+}
+
+.image {
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
+  filter: drop-shadow(0 4px 20px rgba(37, 99, 235, 0.15));
+}
+
+.image:hover {
+  transform: rotate(6deg) scale(1.06);
+  filter: drop-shadow(0 8px 30px rgba(37, 99, 235, 0.3));
+}
+
+.highlight {
+  position: relative;
+  background: linear-gradient(135deg, var(--mantine-color-victoria-5) 0%, var(--mantine-color-victoria-7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+  font-weight: 800;
+  padding: 0;
+}

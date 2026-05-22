@@ -72,6 +72,20 @@ export class FileService {
     const storageService = this.getStorageService(share?.storageProvider);
     return await storageService.getZip(shareId);
   }
+
+  async getDownloadPresignedUrl(shareId: string, fileId: string): Promise<string> {
+    return this.s3FileService.getDownloadPresignedUrl(shareId, fileId);
+  }
+
+  async approve(shareId: string, fileId: string) {
+    return await this.prisma.file.update({
+      where: { id: fileId },
+      data: {
+        isApproved: true,
+        isSuspect: false,
+      },
+    });
+  }
 }
 
 export interface File {

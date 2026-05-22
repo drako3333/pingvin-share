@@ -1,6 +1,7 @@
 import { OmitType } from "@nestjs/swagger";
-import { Expose, plainToClass } from "class-transformer";
+import { Expose, plainToClass, Type } from "class-transformer";
 import { ShareDTO } from "./share.dto";
+import { FileDTO } from "../../file/dto/file.dto";
 
 export class AdminShareDTO extends OmitType(ShareDTO, [
   "files",
@@ -12,6 +13,10 @@ export class AdminShareDTO extends OmitType(ShareDTO, [
 
   @Expose()
   createdAt: Date;
+
+  @Expose()
+  @Type(() => OmitType(FileDTO, ["share", "from"] as const))
+  files: Omit<FileDTO, "share" | "from">[];
 
   from(partial: Partial<AdminShareDTO>) {
     return plainToClass(AdminShareDTO, partial, {

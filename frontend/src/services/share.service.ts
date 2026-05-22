@@ -179,6 +179,46 @@ const getAnalytics = async (shareId: string): Promise<any[]> => {
   return (await api.get(`/shares/${shareId}/analytics`)).data;
 };
 
+const initiateMultipart = async (shareId: string, name: string, size: number) => {
+  return (await api.post(`shares/${shareId}/files/multipart/initiate`, { name, size })).data;
+};
+
+const signPart = async (
+  shareId: string,
+  fileId: string,
+  partNumber: number,
+  uploads: Array<{ bucketId: string; uploadId: string }>,
+) => {
+  return (await api.post(`shares/${shareId}/files/multipart/sign-part`, { fileId, partNumber, uploads })).data;
+};
+
+const completeMultipart = async (
+  shareId: string,
+  fileId: string,
+  fileName: string,
+  fileSize: number,
+  hash: string,
+  uploads: Array<{
+    bucketId: string;
+    uploadId: string;
+    parts: Array<{ ETag: string; PartNumber: number }>;
+  }>,
+) => {
+  return (
+    await api.post(`shares/${shareId}/files/multipart/complete`, {
+      fileId,
+      fileName,
+      fileSize,
+      hash,
+      uploads,
+    })
+  ).data;
+};
+
+const approveFile = async (shareId: string, fileId: string) => {
+  return (await api.post(`shares/${shareId}/files/${fileId}/approve`)).data;
+};
+
 export default {
   list,
   create,
@@ -200,4 +240,9 @@ export default {
   getMyReverseShares,
   removeReverseShare,
   getAnalytics,
+  initiateMultipart,
+  signPart,
+  completeMultipart,
+  approveFile,
 };
+

@@ -4,14 +4,13 @@ import {
   Button,
   Center,
   Container,
-  createStyles,
-  Group,
+  Flex,
   Paper,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { TbArrowLeft } from "react-icons/tb";
@@ -21,29 +20,7 @@ import useTranslate from "../../../hooks/useTranslate.hook";
 import authService from "../../../services/auth.service";
 import toast from "../../../utils/toast.util";
 
-const useStyles = createStyles((theme) => ({
-  title: {
-    fontSize: 26,
-    fontWeight: 900,
-    fontFamily: `Greycliff CF, ${theme.fontFamily}`,
-  },
-
-  controls: {
-    [theme.fn.smallerThan("xs")]: {
-      flexDirection: "column-reverse",
-    },
-  },
-
-  control: {
-    [theme.fn.smallerThan("xs")]: {
-      width: "100%",
-      textAlign: "center",
-    },
-  },
-}));
-
 const ResetPassword = () => {
-  const { classes } = useStyles();
   const router = useRouter();
   const t = useTranslate();
 
@@ -51,7 +28,7 @@ const ResetPassword = () => {
     initialValues: {
       email: "",
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         email: yup
           .string()
@@ -63,10 +40,10 @@ const ResetPassword = () => {
 
   return (
     <Container size={460} my={30}>
-      <Title order={2} weight={900} align="center">
+      <Title order={2} fw={900} ta="center" fz={26}>
         <FormattedMessage id="resetPassword.title" />
       </Title>
-      <Text color="dimmed" size="sm" align="center">
+      <Text c="dimmed" size="sm" ta="center">
         <FormattedMessage id="resetPassword.description" />
       </Text>
 
@@ -87,12 +64,17 @@ const ResetPassword = () => {
             placeholder={t("signup.input.email.placeholder")}
             {...form.getInputProps("email")}
           />
-          <Group position="apart" mt="lg" className={classes.controls}>
+          <Flex
+            justify="space-between"
+            mt="lg"
+            direction={{ base: "column-reverse", xs: "row" }}
+          >
             <Anchor
               component={Link}
-              color="dimmed"
+              c="dimmed"
               size="sm"
-              className={classes.control}
+              w={{ base: "100%", xs: "auto" }}
+              ta={{ base: "center", xs: "left" }}
               href={"/auth/signIn"}
             >
               <Center inline>
@@ -102,10 +84,10 @@ const ResetPassword = () => {
                 </Box>
               </Center>
             </Anchor>
-            <Button type="submit" className={classes.control}>
+            <Button type="submit" w={{ base: "100%", xs: "auto" }}>
               <FormattedMessage id="resetPassword.text.resetPassword" />
             </Button>
-          </Group>
+          </Flex>
         </form>
       </Paper>
     </Container>

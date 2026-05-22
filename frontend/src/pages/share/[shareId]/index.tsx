@@ -1,4 +1,4 @@
-import { Box, Group, Text, Title, Button } from "@mantine/core";
+import { Alert, Box, Group, Text, Title, Button } from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { GetServerSidePropsContext } from "next";
 import { useEffect, useState } from "react";
@@ -15,7 +15,7 @@ import toast from "../../../utils/toast.util";
 import { byteToHumanSizeString } from "../../../utils/fileSize.util";
 import useUser from "../../../hooks/user.hook";
 import Link from "next/link";
-import { TbChartBar, TbEdit } from "react-icons/tb";
+import { TbChartBar, TbEdit, TbFlame } from "react-icons/tb";
 
 export function getServerSideProps(context: GetServerSidePropsContext) {
   return {
@@ -29,7 +29,8 @@ const Share = ({ shareId }: { shareId: string }) => {
   const t = useTranslate();
   const { user } = useUser();
 
-  const canManage = user && (user.isAdmin || (share?.creator && user.id === share.creator.id));
+  const canManage =
+    user && (user.isAdmin || (share?.creator && user.id === share.creator.id));
 
   const getShareToken = async (password?: string) => {
     await shareService
@@ -111,7 +112,24 @@ const Share = ({ shareId }: { shareId: string }) => {
         description={t("share.description")}
       />
 
-      <Group position="apart" mb="lg" align="flex-start">
+      {share?.burnAfterReading && (
+        <Alert
+          color="red"
+          variant="light"
+          icon={<TbFlame size={20} />}
+          title={t("share.burn-after-reading.warning")}
+          mb="lg"
+          styles={{
+            root: {
+              borderLeft: "4px solid var(--mantine-color-red-6)",
+            },
+          }}
+        >
+          {t("share.burn-after-reading.description")}
+        </Alert>
+      )}
+
+      <Group justify="space-between" mb="lg" align="flex-start">
         <Box style={{ maxWidth: "70%" }}>
           <Title order={3}>{share?.name || share?.id}</Title>
           <Text size="sm">{share?.description}</Text>
@@ -133,10 +151,10 @@ const Share = ({ shareId }: { shareId: string }) => {
             </Text>
           )}
           {canManage && (
-            <Group spacing="xs" mt="sm">
+            <Group gap="xs" mt="sm">
               <Link href={`/share/${shareId}/analytics`}>
                 <Button
-                  leftIcon={<TbChartBar size={16} />}
+                  leftSection={<TbChartBar size={16} />}
                   variant="light"
                   color="teal"
                   size="xs"
@@ -147,7 +165,7 @@ const Share = ({ shareId }: { shareId: string }) => {
               </Link>
               <Link href={`/share/${shareId}/edit`}>
                 <Button
-                  leftIcon={<TbEdit size={16} />}
+                  leftSection={<TbEdit size={16} />}
                   variant="light"
                   color="orange"
                   size="xs"

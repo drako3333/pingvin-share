@@ -1,7 +1,6 @@
 import {
   Button,
   Card,
-  Col,
   Grid,
   Group,
   Loader,
@@ -16,7 +15,13 @@ import {
 import { GetServerSidePropsContext } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { TbArrowLeft, TbWorld, TbDeviceDesktop, TbDownload, TbUsers } from "react-icons/tb";
+import {
+  TbArrowLeft,
+  TbWorld,
+  TbDeviceDesktop,
+  TbDownload,
+  TbUsers,
+} from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import Meta from "../../../components/Meta";
 import shareService from "../../../services/share.service";
@@ -122,7 +127,8 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
       .map(([name, count]) => ({
         name,
         count,
-        percentage: totalDownloads > 0 ? Math.round((count / totalDownloads) * 100) : 0,
+        percentage:
+          totalDownloads > 0 ? Math.round((count / totalDownloads) * 100) : 0,
       }))
       .sort((a, b) => b.count - a.count);
   };
@@ -134,21 +140,24 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
   return (
     <>
       <Meta title={t("analytics.title-share", { shareName })} />
-      
-      <Group position="apart" mb={20} align="center">
+
+      <Group justify="space-between" mb={20} align="center">
         <div>
           <Button
             component={Link}
             href="/account/shares"
             variant="subtle"
-            leftIcon={<TbArrowLeft size={16} />}
-            compact
+            leftSection={<TbArrowLeft size={16} />}
+            size="xs"
             mb={10}
           >
             <FormattedMessage id="analytics.back-to-shares" />
           </Button>
           <Title order={3}>
-            <FormattedMessage id="analytics.title-share" values={{ shareName }} />
+            <FormattedMessage
+              id="analytics.title-share"
+              values={{ shareName }}
+            />
           </Title>
           <Text size="sm" color="dimmed">
             <FormattedMessage id="analytics.subtitle-share" />
@@ -158,137 +167,158 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
 
       {/* KPI Cards Grid */}
       <Grid mb={30}>
-        <Col span={12} xs={6} md={3}>
+        <Grid.Col span={{ base: 12, xs: 6, md: 3 }}>
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
-            <Group position="apart">
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
                 <FormattedMessage id="analytics.downloads" />
               </Text>
               <TbDownload size={20} color="gray" />
             </Group>
-            <Text size="xl" weight={700} mt={5}>
+            <Text size="xl" fw={700} mt={5}>
               {totalDownloads}
             </Text>
-            <Text size="xs" color="dimmed" mt={5}>
+            <Text size="xs" c="dimmed" mt={5}>
               <FormattedMessage id="analytics.downloads.subtitle" />
             </Text>
           </Paper>
-        </Col>
+        </Grid.Col>
 
-        <Col span={12} xs={6} md={3}>
+        <Grid.Col span={{ base: 12, xs: 6, md: 3 }}>
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
-            <Group position="apart">
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
                 <FormattedMessage id="analytics.visitors" />
               </Text>
               <TbUsers size={20} color="gray" />
             </Group>
-            <Text size="xl" weight={700} mt={5}>
+            <Text size="xl" fw={700} mt={5}>
               {uniqueIps}
             </Text>
-            <Text size="xs" color="dimmed" mt={5}>
+            <Text size="xs" c="dimmed" mt={5}>
               <FormattedMessage id="analytics.visitors.subtitle" />
             </Text>
           </Paper>
-        </Col>
+        </Grid.Col>
 
-        <Col span={12} xs={6} md={3}>
+        <Grid.Col span={{ base: 12, xs: 6, md: 3 }}>
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
-            <Group position="apart">
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
                 <FormattedMessage id="analytics.country" />
               </Text>
               <TbWorld size={20} color="gray" />
             </Group>
-            <Text size="xl" weight={700} mt={5} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <Text
+              size="xl"
+              fw={700}
+              mt={5}
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {topCountry}
             </Text>
-            <Text size="xs" color="dimmed" mt={5}>
+            <Text size="xs" c="dimmed" mt={5}>
               <FormattedMessage id="analytics.country.subtitle" />
             </Text>
           </Paper>
-        </Col>
+        </Grid.Col>
 
-        <Col span={12} xs={6} md={3}>
+        <Grid.Col span={{ base: 12, xs: 6, md: 3 }}>
           <Paper withBorder p="md" radius="md" style={{ height: "100%" }}>
-            <Group position="apart">
-              <Text size="xs" color="dimmed" weight={700} transform="uppercase">
+            <Group justify="space-between">
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase">
                 <FormattedMessage id="analytics.device" />
               </Text>
               <TbDeviceDesktop size={20} color="gray" />
             </Group>
-            <Text size="xl" weight={700} mt={5}>
+            <Text size="xl" fw={700} mt={5}>
               {topDevice}
             </Text>
-            <Text size="xs" color="dimmed" mt={5}>
+            <Text size="xs" c="dimmed" mt={5}>
               <FormattedMessage id="analytics.device.subtitle" />
             </Text>
           </Paper>
-        </Col>
+        </Grid.Col>
       </Grid>
 
       {/* Breakdowns section */}
       {totalDownloads > 0 && (
         <Grid mb={30}>
           {/* Devices & Browsers */}
-          <Col span={12} md={6}>
+          <Grid.Col span={{ base: 12, md: 6 }}>
             <Card withBorder radius="md" p="lg" style={{ height: "100%" }}>
               <Title order={4} mb={15}>
                 <FormattedMessage id="analytics.devices-browsers" />
               </Title>
-              
-              <Text size="sm" weight={600} mb={5}>
+
+              <Text size="sm" fw={600} mb={5}>
                 <FormattedMessage id="analytics.device-types" />
               </Text>
-              <Progress
-                size="xl"
-                radius="xl"
-                sections={devicesBreakdown.map((item, idx) => {
+              <Progress.Root size="xl" radius="xl" mb={20}>
+                {devicesBreakdown.map((item, idx) => {
                   const colors = ["victoria", "teal", "orange"];
-                  return {
-                    value: item.percentage,
-                    color: colors[idx % colors.length],
-                    label: `${item.name} (${item.percentage}%)`,
-                  };
+                  return (
+                    <Progress.Section
+                      key={item.name}
+                      value={item.percentage}
+                      color={colors[idx % colors.length]}
+                    >
+                      <Progress.Label>{`${item.name} (${item.percentage}%)`}</Progress.Label>
+                    </Progress.Section>
+                  );
                 })}
-                mb={20}
-              />
+              </Progress.Root>
 
-              <Text size="sm" weight={600} mb={10}>
+              <Text size="sm" fw={600} mb={10}>
                 <FormattedMessage id="analytics.browsers" />
               </Text>
               {browsersBreakdown.map((browser) => (
                 <div key={browser.name} style={{ marginBottom: 12 }}>
-                  <Group position="apart" mb={4}>
-                    <Text size="xs" weight={500}>{browser.name}</Text>
-                    <Text size="xs" color="dimmed">{browser.count} ({browser.percentage}%)</Text>
+                  <Group justify="space-between" mb={4}>
+                    <Text size="xs" fw={500}>
+                      {browser.name}
+                    </Text>
+                    <Text size="xs" color="dimmed">
+                      {browser.count} ({browser.percentage}%)
+                    </Text>
                   </Group>
                   <Progress value={browser.percentage} size="xs" color="teal" />
                 </div>
               ))}
             </Card>
-          </Col>
+          </Grid.Col>
 
           {/* Countries ranking */}
-          <Col span={12} md={6}>
+          <Grid.Col span={{ base: 12, md: 6 }}>
             <Card withBorder radius="md" p="lg" style={{ height: "100%" }}>
               <Title order={4} mb={15}>
                 <FormattedMessage id="analytics.locations" />
               </Title>
               {countriesBreakdown.slice(0, 5).map((country) => (
                 <div key={country.name} style={{ marginBottom: 15 }}>
-                  <Group position="apart" mb={4}>
-                    <Text size="sm" weight={500}>{country.name}</Text>
-                    <Text size="sm" weight={600}>{country.percentage}%</Text>
+                  <Group justify="space-between" mb={4}>
+                    <Text size="sm" fw={500}>
+                      {country.name}
+                    </Text>
+                    <Text size="sm" fw={600}>
+                      {country.percentage}%
+                    </Text>
                   </Group>
                   <Progress value={country.percentage} size="sm" color="blue" />
                   <Text size="xs" color="dimmed" mt={2}>
-                    <FormattedMessage id="analytics.count-downloads" values={{ count: country.count }} />
+                    <FormattedMessage
+                      id="analytics.count-downloads"
+                      values={{ count: country.count }}
+                    />
                   </Text>
                 </div>
               ))}
             </Card>
-          </Col>
+          </Grid.Col>
         </Grid>
       )}
 
@@ -335,12 +365,16 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
                 return (
                   <tr key={log.id}>
                     <td>
-                      <Text size="sm" weight={500}>
+                      <Text size="sm" fw={500}>
                         {moment(log.createdAt).format("DD/MM/YYYY HH:mm:ss")}
                       </Text>
                     </td>
                     <td>
-                      <Text size="sm" weight={600} color={log.fileId ? "teal" : "blue"}>
+                      <Text
+                        size="sm"
+                        fw={600}
+                        color={log.fileId ? "teal" : "blue"}
+                      >
                         {fileName.split("/").pop()}
                       </Text>
                     </td>
@@ -348,7 +382,9 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
                       <Text size="sm">{log.ip}</Text>
                     </td>
                     <td>
-                      <Text size="sm">{log.country || t("analytics.unknown")}</Text>
+                      <Text size="sm">
+                        {log.country || t("analytics.unknown")}
+                      </Text>
                     </td>
                     <td>
                       <Text size="sm">{log.device || "Desktop"}</Text>
@@ -365,7 +401,7 @@ const ShareAnalytics = ({ shareId }: { shareId: string }) => {
           </Table>
         )}
       </Card>
-      
+
       <Space h="xl" />
     </>
   );

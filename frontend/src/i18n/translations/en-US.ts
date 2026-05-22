@@ -118,6 +118,17 @@ export default {
   "account.card.security.totp.disable.description":
     "Enter your current password to disable TOTP",
   "account.card.security.totp.button.start": "Start",
+  "account.card.security.push.title": "Push Notifications",
+  "account.card.security.push.description": "Receive real-time notifications in your browser when your shares are downloaded, are about to expire, or when your reverse shares are completed.",
+  "account.card.security.push.label": "Enable push notifications",
+  "account.card.security.push.status.active": "Subscription active",
+  "account.card.security.push.status.inactive": "Not configured",
+  "account.card.security.push.status.blocked": "Blocked by browser",
+  "account.card.security.push.notSupported": "Push notifications are not supported by your browser.",
+  "account.card.security.push.notify.subscribed": "Push notifications successfully enabled!",
+  "account.card.security.push.notify.unsubscribed": "Push notifications disabled.",
+  "account.card.security.push.notify.permissionDenied": "Permission denied by browser.",
+  "account.card.security.push.notify.error": "Error setting up push notifications.",
   "account.modal.totp.title": "Enable TOTP",
   "account.modal.totp.step1": "Step 1: Add your authenticator",
   "account.modal.totp.step2": "Step 2: Validate your code",
@@ -352,6 +363,10 @@ export default {
   "upload.modal.accordion.security.password.placeholder": "No password",
   "upload.modal.accordion.security.max-views.label": "Maximum views",
   "upload.modal.accordion.security.max-views.placeholder": "No limit",
+  "upload.modal.accordion.security.burn-after-reading.label": "Burn After Reading 🔥",
+  "upload.modal.accordion.security.burn-after-reading.description": "This link will be automatically destroyed after the first view",
+  "share.burn-after-reading.warning": "⚠️ This share will be permanently destroyed after viewing",
+  "share.burn-after-reading.description": "This share is set to \"Burn After Reading\" mode. After your consultation, it will be automatically and permanently deleted. Download your files now.",
 
   // showCompletedUploadModal.tsx
   "upload.modal.completed.never-expires": "This share will never expire.",
@@ -658,10 +673,7 @@ export default {
   "admin.config.ldap.admin-groups": "Admin group",
   "admin.config.ldap.admin-groups.description":
     "Group required for administrative access.",
-  "admin.config.ldap.field-name-member-of": "User groups attribute name",
-  "admin.config.ldap.field-name-member-of.description":
-    "LDAP attribute name for the groups, an user is a member of. This is used when checking for the admin group.",
-  "admin.config.ldap.field-name-email": "User email attribute name",
+"admin.config.ldap.field-name-email": "User email attribute name",
   "admin.config.ldap.field-name-email.description":
     "LDAP attribute name for the email of an user.",
   "admin.config.notify.success": "Configuration updated successfully.",
@@ -680,28 +692,31 @@ export default {
   "admin.config.s3.bucket-name": "Bucket name",
   "admin.config.s3.bucket-name.description": "The name of the S3 bucket.",
   "admin.config.s3.bucket-path": "Path",
-  "admin.config.s3.bucket-path.description":
-    "The default path which should be used to store the files in the S3 bucket.",
+  "admin.config.s3.bucket-path.description": "The default path which should be used to store the files in the S3 bucket.",
   "admin.config.s3.key": "Key",
-  "admin.config.s3.key.description":
-    "The key which allows you to access the S3 bucket.",
+  "admin.config.s3.key.description": "The key which allows you to access the S3 bucket.",
   "admin.config.s3.secret": "Secret",
-  "admin.config.s3.secret.description":
-    "The secret which allows you to access the S3 bucket.",
+  "admin.config.s3.secret.description": "The secret which allows you to access the S3 bucket.",
   "admin.config.s3.use-checksum": "Use checksum",
-  "admin.config.s3.use-checksum.description":
-    "Turn off for backends that do not support checksum (e.g. B2).",
+  "admin.config.s3.use-checksum.description": "Turn off for backends that do not support checksum (e.g. B2).",
+  "admin.config.s3.multi-buckets-enabled": "Enable Multi-Buckets",
+  "admin.config.s3.multi-buckets-enabled.description": "Distribute files across multiple region-based S3 buckets based on the uploader's geolocated IP address.",
+  "admin.config.s3.multi-buckets-config": "Multi-Buckets Configuration",
+  "admin.config.s3.multi-buckets-config.description": "JSON configuration of additional S3-compatible cloud storage buckets with dynamic region-matching rules.",
+  "admin.config.s3.tiering-enabled": "Enable SSD to S3 Auto-Tiering",
+  "admin.config.s3.tiering-enabled.description": "Automatically migrate older local SSD shares to configured cloud cold storage to free local space.",
+  "admin.config.s3.tiering-days": "Migration Threshold (Days)",
+  "admin.config.s3.tiering-days.description": "Number of days before local completed shares are moved to S3 cold storage.",
+  "admin.config.s3.disable-local-storage": "Disable local storage",
+  "admin.config.s3.disable-local-storage.description": "Once enabled, all shares and files are stored exclusively on S3/MinIO. Enabling this option automatically migrates all local files to S3/MinIO in the background.",
 
   "admin.config.category.legal": "Legal",
-  "admin.config.legal.enabled": "Enable legal notices",
-  "admin.config.legal.enabled.description":
-    "Whether to show a link to imprint and privacy policy in the footer.",
+  "admin.config.legal.enabled": "Enable legal pages",
+  "admin.config.legal.enabled.description": "Show/Hide a link to the legal notice and privacy policy in the footer.",
   "admin.config.legal.imprint-text": "Imprint text",
-  "admin.config.legal.imprint-text.description":
-    "The text which should be shown in the imprint. Supports Markdown. Leave blank to link to an external imprint page.",
+  "admin.config.legal.imprint-text.description": "The text which should be shown in the imprint. Supports Markdown. Leave blank to link to an external imprint page.",
   "admin.config.legal.imprint-url": "Imprint URL",
-  "admin.config.legal.imprint-url.description":
-    "If you already have an imprint page you can link it here instead of using the text field.",
+  "admin.config.legal.imprint-url.description": "If you already have an imprint page you can link it here instead of using the text field.",
   "admin.config.legal.privacy-policy-text": "Privacy policy text",
   "admin.config.legal.privacy-policy-text.description":
     "The text which should be shown in the privacy policy. Supports Markdown. Leave blank to link to an external privacy policy page.",
@@ -846,4 +861,10 @@ export default {
   "analytics.shares.views": "Total Visitors",
   "analytics.shares.totalsize": "Total Size",
   "analytics.shares.averagesize": "Average Size",
+  "upload.modal.completed.download-qr-png": "Download QR Code (PNG)",
+  "upload.modal.completed.share-whatsapp": "Share on WhatsApp",
+  "upload.modal.completed.share-telegram": "Share on Telegram",
+  "upload.modal.completed.share-email": "Share via Email",
+  "upload.modal.completed.share-title-email": "Shared File - Ustrohosting Share",
+  "upload.modal.completed.share-body-email": "Hello,\n\nHere is a link to download the shared files:\n{link}\n\nBest regards,\nUstrohosting Share"
 };

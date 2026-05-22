@@ -24,6 +24,10 @@ import { Transform, TransformCallback } from "stream";
 import { AuditLogService } from "src/audit/audit.service";
 import { ShareAnalyticsService } from "src/share/share-analytics.service";
 import { User } from "@prisma/client";
+import { PrismaService } from "src/prisma/prisma.service";
+import { NotificationService } from "src/notification/notification.service";
+import { JwtGuard } from "src/auth/guard/jwt.guard";
+import { AdministratorGuard } from "src/auth/guard/isAdmin.guard";
 
 export class ThrottleStream extends Transform {
   private bps: number;
@@ -65,6 +69,8 @@ export class FileController {
     private configService: ConfigService,
     private auditLogService: AuditLogService,
     private shareAnalyticsService: ShareAnalyticsService,
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
   ) {}
 
   @Post()
@@ -147,6 +153,20 @@ export class FileController {
     const ua = request.headers["user-agent"] || "";
     void this.shareAnalyticsService.record(shareId, request.ip, ua);
 
+    // Trigger push notification
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+    });
+    if (share && share.creatorId) {
+      const shareName = share.name || share.id;
+      void this.notificationService.sendPushNotification(
+        share.creatorId,
+        "Archive ZIP téléchargée",
+        `Quelqu'un a téléchargé l'archive ZIP de votre partage "${shareName}".`,
+        `/share/${shareId}/analytics`,
+      );
+    }
+
     res.set({
       "Content-Type": "application/zip",
       "Content-Disposition": contentDisposition(`${shareId}.zip`),
@@ -184,6 +204,42 @@ export class FileController {
     @Query("download") download = "true",
     @Req() request: Request,
   ) {
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+    });
+
+    if (share && share.storageProvider === "S3") {
+      const presignedUrl = await this.fileService.getDownloadPresignedUrl(shareId, fileId);
+
+      const user = request["user"] as User;
+      const username = user?.username || "Anonyme";
+      const userId = user?.id || undefined;
+
+      await this.auditLogService.create(
+        "TELECHARGEMENT",
+        request.ip,
+        { shareId, fileId, fileName: "S3 Direct Presigned URL" },
+        userId,
+        username,
+      );
+
+      const ua = request.headers["user-agent"] || "";
+      void this.shareAnalyticsService.record(shareId, request.ip, ua, fileId);
+
+      if (share.creatorId) {
+        const shareName = share.name || share.id;
+        void this.notificationService.sendPushNotification(
+          share.creatorId,
+          "Fichier téléchargé",
+          `Quelqu'un a téléchargé un fichier de votre partage "${shareName}".`,
+          `/share/${shareId}/analytics`,
+        );
+      }
+
+      res.redirect(presignedUrl);
+      return;
+    }
+
     const file = await this.fileService.get(shareId, fileId);
 
     const user = request["user"] as User;
@@ -201,6 +257,17 @@ export class FileController {
     // Asynchronously log analytics
     const ua = request.headers["user-agent"] || "";
     void this.shareAnalyticsService.record(shareId, request.ip, ua, fileId);
+
+    // Trigger push notification
+    if (share && share.creatorId) {
+      const shareName = share.name || share.id;
+      void this.notificationService.sendPushNotification(
+        share.creatorId,
+        "Fichier téléchargé",
+        `Quelqu'un a téléchargé le fichier "${file.metaData.name}" de votre partage "${shareName}".`,
+        `/share/${shareId}/analytics`,
+      );
+    }
 
     const headers = {
       "Content-Type":
@@ -232,5 +299,14 @@ export class FileController {
     }
 
     return new StreamableFile(file.file);
+  }
+
+  @Post(":fileId/approve")
+  @UseGuards(JwtGuard, AdministratorGuard)
+  async approve(
+    @Param("shareId") shareId: string,
+    @Param("fileId") fileId: string,
+  ) {
+    return await this.fileService.approve(shareId, fileId);
   }
 }

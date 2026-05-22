@@ -7,17 +7,19 @@ import {
   Paper,
   PasswordInput,
   Stack,
+  Switch,
   Tabs,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
-import { useForm, yupResolver } from "@mantine/form";
+import { useForm, schemaResolver } from "@mantine/form";
 import { useModals } from "@mantine/modals";
 import { useEffect, useState } from "react";
-import { TbAuth2Fa } from "react-icons/tb";
+import { TbAuth2Fa, TbBell } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import * as yup from "yup";
+import pushNotificationService from "../../services/pushNotification.service";
 import Meta from "../../components/Meta";
 import LanguagePicker from "../../components/account/LanguagePicker";
 import ThemeSwitcher from "../../components/account/ThemeSwitcher";
@@ -28,6 +30,136 @@ import authService from "../../services/auth.service";
 import userService from "../../services/user.service";
 import { getOAuthIcon, getOAuthUrl, unlinkOAuth } from "../../utils/oauth.util";
 import toast from "../../utils/toast.util";
+
+// Helper to parse base64 VAPID keys
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+const PushNotificationSettings = () => {
+  const [isSupported, setIsSupported] = useState(false);
+  const [permission, setPermission] = useState<string>("default");
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const t = useTranslate();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
+      setIsSupported(true);
+      setPermission(Notification.permission);
+      
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.pushManager.getSubscription().then((subscription) => {
+          setIsSubscribed(!!subscription);
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      }).catch(() => setLoading(false));
+    } else {
+      setIsSupported(false);
+      setLoading(false);
+    }
+  }, []);
+
+  const handleToggle = async () => {
+    if (!isSupported || loading) return;
+    setLoading(true);
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      
+      if (isSubscribed) {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await subscription.unsubscribe();
+          await pushNotificationService.unsubscribe(subscription.endpoint);
+        }
+        setIsSubscribed(false);
+        toast.success(t("account.card.security.push.notify.unsubscribed"));
+      } else {
+        const perm = await Notification.requestPermission();
+        setPermission(perm);
+        if (perm !== "granted") {
+          toast.error(t("account.card.security.push.notify.permissionDenied"));
+          setLoading(false);
+          return;
+        }
+
+        const vapidKey = await pushNotificationService.getVapidPublicKey();
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+
+        const p256dh = btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey("p256dh") as ArrayBuffer) as any));
+        const auth = btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey("auth") as ArrayBuffer) as any));
+
+        await pushNotificationService.subscribe({
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+        });
+
+        setIsSubscribed(true);
+        toast.success(t("account.card.security.push.notify.subscribed"));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(t("account.card.security.push.notify.error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isSupported) {
+    return (
+      <Text size="sm" color="dimmed" mt="xs">
+        <FormattedMessage id="account.card.security.push.notSupported" />
+      </Text>
+    );
+  }
+
+  return (
+    <Stack mt="xs">
+      <Text size="sm" color="dimmed">
+        <FormattedMessage id="account.card.security.push.description" />
+      </Text>
+      
+      <Group justify="space-between" align="center" style={{ width: "100%" }} mt="sm">
+        <div>
+          <Text size="sm" fw={500}>
+            <FormattedMessage id="account.card.security.push.label" />
+          </Text>
+          <Text size="xs" color="dimmed">
+            {permission === "denied" ? (
+              <span style={{ color: "var(--mantine-color-red-6)" }}>
+                <FormattedMessage id="account.card.security.push.status.blocked" />
+              </span>
+            ) : isSubscribed ? (
+              <span style={{ color: "var(--mantine-color-green-6)" }}>
+                <FormattedMessage id="account.card.security.push.status.active" />
+              </span>
+            ) : (
+              <FormattedMessage id="account.card.security.push.status.inactive" />
+            )}
+          </Text>
+        </div>
+        <Switch
+          checked={isSubscribed}
+          onChange={handleToggle}
+          disabled={loading || permission === "denied"}
+        />
+      </Group>
+    </Stack>
+  );
+};
 
 const Account = () => {
   const [oauth, setOAuth] = useState<string[]>([]);
@@ -48,7 +180,7 @@ const Account = () => {
       username: user?.username,
       email: user?.email,
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         email: yup.string().email(t("common.error.invalid-email")),
         username: yup
@@ -63,7 +195,7 @@ const Account = () => {
       oldPassword: "",
       password: "",
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         oldPassword: yup.string().when([], {
           is: () => !!user?.hasPassword,
@@ -85,7 +217,7 @@ const Account = () => {
     initialValues: {
       password: "",
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         password: yup
           .string()
@@ -100,7 +232,7 @@ const Account = () => {
       password: "",
       code: "",
     },
-    validate: yupResolver(
+    validate: schemaResolver(
       yup.object().shape({
         password: yup.string().min(8),
         code: yup
@@ -168,7 +300,7 @@ const Account = () => {
                 {...accountForm.getInputProps("email")}
               />
               {!user?.isLdap && (
-                <Group position="right">
+                <Group justify="flex-end">
                   <Button type="submit">
                     <FormattedMessage id="common.button.save" />
                   </Button>
@@ -209,7 +341,7 @@ const Account = () => {
                   label={t("account.card.password.new")}
                   {...passwordForm.getInputProps("password")}
                 />
-                <Group position="right">
+                <Group justify="flex-end">
                   <Button type="submit">
                     <FormattedMessage id="common.button.save" />
                   </Button>
@@ -229,7 +361,7 @@ const Account = () => {
                 {oauth.map((provider) => (
                   <Tabs.Tab
                     value={provider}
-                    icon={getOAuthIcon(provider)}
+                    leftSection={getOAuthIcon(provider)}
                     key={provider}
                   >
                     {t(`account.card.oauth.${provider}`)}
@@ -238,7 +370,7 @@ const Account = () => {
               </Tabs.List>
               {oauth.map((provider) => (
                 <Tabs.Panel value={provider} pt="xs" key={provider}>
-                  <Group position="apart">
+                  <Group justify="space-between">
                     <Text>
                       {oauthStatus?.[provider]
                         ? oauthStatus[provider].providerUsername
@@ -295,10 +427,17 @@ const Account = () => {
 
           <Tabs defaultValue="totp">
             <Tabs.List>
-              <Tabs.Tab value="totp" icon={<TbAuth2Fa size={14} />}>
+              <Tabs.Tab value="totp" leftSection={<TbAuth2Fa size={14} />}>
                 TOTP
               </Tabs.Tab>
+              <Tabs.Tab value="push" leftSection={<TbBell size={14} />}>
+                <FormattedMessage id="account.card.security.push.title" />
+              </Tabs.Tab>
             </Tabs.List>
+
+            <Tabs.Panel value="push" pt="xs">
+              <PushNotificationSettings />
+            </Tabs.Panel>
 
             <Tabs.Panel value="totp" pt="xs">
               {user?.totpVerified ? (
@@ -332,7 +471,7 @@ const Account = () => {
                         {...disableTotpForm.getInputProps("code")}
                       />
 
-                      <Group position="right">
+                      <Group justify="flex-end">
                         <Button color="red" type="submit">
                           <FormattedMessage id="common.button.disable" />
                         </Button>
@@ -365,7 +504,7 @@ const Account = () => {
                         )}
                         {...enableTotpForm.getInputProps("password")}
                       />
-                      <Group position="right">
+                      <Group justify="flex-end">
                         <Button type="submit">
                           <FormattedMessage id="account.card.security.totp.button.start" />
                         </Button>

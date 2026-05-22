@@ -1,19 +1,12 @@
 import React from "react";
-import { Button, createStyles, Stack, Text, Title } from "@mantine/core";
+import { Button, Stack, Text, Title } from "@mantine/core";
 import Meta from "../components/Meta";
 import useTranslate from "../hooks/useTranslate.hook";
 import { useRouter } from "next/router";
 import { FormattedMessage } from "react-intl";
 import { safeRedirectPath } from "../utils/router.util";
 
-const useStyle = createStyles({
-  title: {
-    fontSize: 100,
-  },
-});
-
 export default function Error() {
-  const { classes } = useStyle();
   const t = useTranslate();
   const router = useRouter();
 
@@ -27,7 +20,7 @@ export default function Error() {
     <>
       <Meta title={t("error.title")} />
       <Stack align="center">
-        <Title order={3} className={classes.title}>
+        <Title order={3} style={{ fontSize: 100 }}>
           {t("error.description")}
         </Title>
         <Text mt="xl" size="lg">

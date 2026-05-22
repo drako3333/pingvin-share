@@ -20,16 +20,23 @@ const showShareLinkModal = (modals: ModalsContextProps, shareId: string) => {
   return modals.openModal({
     title: t("account.shares.modal.share-link"),
     children: (
-      <Stack align="stretch" spacing="md">
-        <TextInput variant="filled" value={link} readOnly onClick={(e) => (e.target as HTMLInputElement).select()} />
+      <Stack align="stretch" gap="md">
+        <TextInput
+          variant="filled"
+          value={link}
+          readOnly
+          onClick={(e) => (e.target as HTMLInputElement).select()}
+        />
         <Center>
-          <div style={{
-            padding: 16,
-            borderRadius: 12,
-            background: "#fff",
-            boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
-            border: "1px solid rgba(0,0,0,0.05)",
-          }}>
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 12,
+              background: "#fff",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.05)",
+            }}
+          >
             <img
               src={qrCodeUrl}
               alt="QR Code"
@@ -39,7 +46,7 @@ const showShareLinkModal = (modals: ModalsContextProps, shareId: string) => {
         </Center>
         <Center>
           <Button
-            leftIcon={<TbDownload size={16} />}
+            leftSection={<TbDownload size={16} />}
             variant="subtle"
             size="xs"
             onClick={downloadQrCode}

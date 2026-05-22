@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { Button, Center, createStyles, Group, Text } from "@mantine/core";
+import { Button, Center, Group, Text } from "@mantine/core";
 import { Dropzone as MantineDropzone } from "@mantine/dropzone";
 import { useRef } from "react";
 import { TbCloudUpload, TbUpload } from "react-icons/tb";
@@ -8,33 +8,13 @@ import useTranslate from "../../hooks/useTranslate.hook";
 import { FileUpload } from "../../types/File.type";
 import { byteToHumanSizeString } from "../../utils/fileSize.util";
 import toast from "../../utils/toast.util";
-
-const useStyles = createStyles((theme) => ({
-  wrapper: {
-    position: "relative",
-    marginBottom: 30,
-  },
-
-  dropzone: {
-    borderWidth: 1,
-    paddingBottom: 50,
-  },
-
-  icon: {
-    color:
-      theme.colorScheme === "dark"
-        ? theme.colors.dark[3]
-        : theme.colors.gray[4],
-  },
-
-  control: {
-    position: "absolute",
-    bottom: -20,
-  },
-}));
+import classes from "./Dropzone.module.css";
 
 // Recursively scan a FileSystemEntry (file or directory) and return flat File[]
-const scanEntry = async (entry: FileSystemEntry, path = ""): Promise<File[]> => {
+const scanEntry = async (
+  entry: FileSystemEntry,
+  path = "",
+): Promise<File[]> => {
   if (entry.isFile) {
     return new Promise<File[]>((resolve) => {
       (entry as FileSystemFileEntry).file((file: File) => {
@@ -50,7 +30,9 @@ const scanEntry = async (entry: FileSystemEntry, path = ""): Promise<File[]> => 
   } else if (entry.isDirectory) {
     const dirReader = (entry as FileSystemDirectoryEntry).createReader();
     const readEntries = (): Promise<FileSystemEntry[]> =>
-      new Promise((resolve) => dirReader.readEntries((entries) => resolve(entries)));
+      new Promise((resolve) =>
+        dirReader.readEntries((entries) => resolve(entries)),
+      );
 
     let allEntries: FileSystemEntry[] = [];
     let batch = await readEntries();
@@ -60,15 +42,18 @@ const scanEntry = async (entry: FileSystemEntry, path = ""): Promise<File[]> => 
     }
 
     const nextPath = path ? `${path}/${entry.name}` : entry.name;
-    const nested = await Promise.all(allEntries.map((e) => scanEntry(e, nextPath)));
+    const nested = await Promise.all(
+      allEntries.map((e) => scanEntry(e, nextPath)),
+    );
     return nested.flat();
   }
   return [];
 };
 
 // Custom file extractor that supports both folder drag-and-drop AND normal file selection
-const getFilesFromEvent = async (event: any): Promise<(File | DataTransferItem)[]> => {
-
+const getFilesFromEvent = async (
+  event: any,
+): Promise<(File | DataTransferItem)[]> => {
   // --- Case 1: Drag-and-drop event (has dataTransfer) ---
   if (event.dataTransfer) {
     const items: DataTransferItemList | undefined = event.dataTransfer.items;
@@ -126,9 +111,8 @@ const Dropzone = ({
   onFilesChanged: (files: FileUpload[]) => void;
 }) => {
   const t = useTranslate();
+  const openRef = useRef<() => void>(null);
 
-  const { classes } = useStyles();
-  const openRef = useRef<() => void>();
   return (
     <div className={classes.wrapper}>
       <MantineDropzone
@@ -139,7 +123,7 @@ const Dropzone = ({
         openRef={openRef as any}
         useFsAccessApi={true}
         getFilesFromEvent={getFilesFromEvent as any}
-        onDrop={(files: FileUpload[]) => {
+        onDrop={(files) => {
           const fileSizeSum = files.reduce((n, { size }) => n + size, 0);
 
           if (fileSizeSum > maxShareSize) {
@@ -149,24 +133,24 @@ const Dropzone = ({
               }),
             );
           } else {
-            files = files.map((newFile) => {
-              newFile.uploadingProgress = 0;
-              return newFile;
+            const mappedFiles = files.map((newFile) => {
+              (newFile as any).uploadingProgress = 0;
+              return newFile as unknown as FileUpload;
             });
-            onFilesChanged(files);
+            onFilesChanged(mappedFiles);
           }
         }}
         className={classes.dropzone}
         radius="md"
       >
         <div style={{ pointerEvents: "none" }}>
-          <Group position="center">
+          <Group justify="center">
             <TbCloudUpload size={50} />
           </Group>
-          <Text align="center" weight={700} size="lg" mt="xl">
+          <Text ta="center" fw={700} size="lg" mt="xl">
             {title || <FormattedMessage id="upload.dropzone.title" />}
           </Text>
-          <Text align="center" size="sm" mt="xs" color="dimmed">
+          <Text ta="center" size="sm" mt="xs" c="dimmed">
             <FormattedMessage
               id="upload.dropzone.description"
               values={{ maxSize: byteToHumanSizeString(maxShareSize) }}

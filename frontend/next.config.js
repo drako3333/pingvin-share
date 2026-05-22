@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const { version } = require('./package.json');
+const path = require('path');
 
 const withPWA = require("next-pwa")({
   dest: "public",
@@ -15,7 +16,9 @@ const withPWA = require("next-pwa")({
 });
 
 module.exports = withPWA({
-  output: "standalone", env: {
+  output: "standalone",
+  outputFileTracingRoot: __dirname,
+  env: {
     VERSION: version,
   },
 });

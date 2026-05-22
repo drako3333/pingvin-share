@@ -1,14 +1,4 @@
-import {
-  Box,
-  Button,
-  createStyles,
-  Group,
-  MediaQuery,
-  Navbar,
-  Stack,
-  Text,
-  ThemeIcon,
-} from "@mantine/core";
+import { Box, Button, Group, Stack, Text, ThemeIcon } from "@mantine/core";
 import Link from "next/link";
 import { Dispatch, SetStateAction } from "react";
 import {
@@ -23,6 +13,7 @@ import {
   TbSocial,
 } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
+import classes from "./ConfigurationNavBar.module.css";
 
 const categories = [
   { name: "General", icon: <TbSettings /> },
@@ -36,42 +27,29 @@ const categories = [
   { name: "Cache", icon: <TbServerBolt /> },
 ];
 
-const useStyles = createStyles((theme) => ({
-  activeLink: {
-    backgroundColor: theme.fn.variant({
-      variant: "light",
-      color: theme.primaryColor,
-    }).background,
-    color: theme.fn.variant({ variant: "light", color: theme.primaryColor })
-      .color,
-
-    borderRadius: theme.radius.sm,
-    fontWeight: 600,
-  },
-}));
-
 const ConfigurationNavBar = ({
   categoryId,
-  isMobileNavBarOpened,
   setIsMobileNavBarOpened,
 }: {
   categoryId: string;
   isMobileNavBarOpened: boolean;
   setIsMobileNavBarOpened: Dispatch<SetStateAction<boolean>>;
 }) => {
-  const { classes } = useStyles();
   return (
-    <Navbar
-      p="md"
-      hiddenBreakpoint="sm"
-      hidden={!isMobileNavBarOpened}
-      width={{ sm: 200, lg: 300 }}
+    <div
+      style={{
+        padding: "var(--mantine-spacing-md)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
     >
-      <Navbar.Section>
-        <Text size="xs" color="dimmed" mb="sm">
+      <div>
+        <Text size="xs" c="dimmed" mb="sm">
           <FormattedMessage id="admin.config.title" />
         </Text>
-        <Stack spacing="xs">
+        <Stack gap="xs">
           {categories.map((category) => (
             <Box
               p="xs"
@@ -84,6 +62,7 @@ const ConfigurationNavBar = ({
               }
               key={category.name}
               href={`/admin/config/${category.name.toLowerCase()}`}
+              style={{ display: "block" }}
             >
               <Group>
                 <ThemeIcon
@@ -104,13 +83,17 @@ const ConfigurationNavBar = ({
             </Box>
           ))}
         </Stack>
-      </Navbar.Section>
-      <MediaQuery largerThan="sm" styles={{ display: "none" }}>
-        <Button mt="xl" variant="light" component={Link} href="/admin">
-          <FormattedMessage id="common.button.go-back" />
-        </Button>
-      </MediaQuery>
-    </Navbar>
+      </div>
+      <Button
+        mt="xl"
+        variant="light"
+        component={Link}
+        href="/admin"
+        display={{ base: "block", sm: "none" }}
+      >
+        <FormattedMessage id="common.button.go-back" />
+      </Button>
+    </div>
   );
 };
 

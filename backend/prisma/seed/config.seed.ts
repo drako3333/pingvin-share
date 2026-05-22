@@ -402,6 +402,26 @@ export const configVariables = {
       type: "boolean",
       defaultValue: "true",
     },
+    multiBucketsEnabled: {
+      type: "boolean",
+      defaultValue: "false",
+    },
+    multiBucketsConfig: {
+      type: "text",
+      defaultValue: "[]",
+    },
+    tieringEnabled: {
+      type: "boolean",
+      defaultValue: "false",
+    },
+    tieringDays: {
+      type: "number",
+      defaultValue: "7",
+    },
+    disableLocalStorage: {
+      type: "boolean",
+      defaultValue: "false",
+    },
   },
   legal: {
     enabled: {
@@ -428,6 +448,19 @@ export const configVariables = {
       type: "string",
       defaultValue: "",
       secret: false,
+    },
+  },
+  push: {
+    vapidPublicKey: {
+      type: "string",
+      defaultValue: "",
+      secret: false,
+    },
+    vapidPrivateKey: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+      obscured: true,
     },
   },
 } satisfies ConfigVariables;
@@ -461,7 +494,7 @@ const prisma = new PrismaClient({
     db: {
       url:
         process.env.DATABASE_URL ||
-        "file:../data/pingvin-share.db?connection_limit=1",
+        "postgresql://postgres:postgres@localhost:5432/pingvin_share?schema=public",
     },
   },
 });

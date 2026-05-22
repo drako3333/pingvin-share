@@ -1,0 +1,8 @@
+.mainContent {
+  background-color: transparent !important;
+  min-height: 100vh;
+}
+
+[data-mantine-color-scheme="dark"] .mainContent {
+  background-color: transparent !important;
+}

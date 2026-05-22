@@ -6,7 +6,7 @@ Liste de fonctionnalités proposées pour transformer Ustrohosting Share en une 
 
 ## 🎨 Expérience Utilisateur
 
-### FEAT-001 · Prévisualisation de fichiers en ligne
+### FEAT-001 · Prévisualisation de fichiers en ligne - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐⭐
 **Description** : Permettre aux destinataires de prévisualiser les fichiers directement dans le navigateur sans les télécharger.
 - **Images** : Galerie avec lightbox, zoom, et navigation par flèches
@@ -19,7 +19,7 @@ Liste de fonctionnalités proposées pour transformer Ustrohosting Share en une 
 
 ---
 
-### FEAT-002 · Liens auto-destructeurs (Burn After Reading)
+### FEAT-002 · Liens auto-destructeurs (Burn After Reading) - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐⭐
 **Description** : Option "Burn after reading" qui supprime automatiquement le partage après le premier téléchargement. Idéal pour l'envoi de documents sensibles (mots de passe, clés API, documents confidentiels).
 - Compteur visuel : "Ce lien sera détruit après consultation"
@@ -28,7 +28,7 @@ Liste de fonctionnalités proposées pour transformer Ustrohosting Share en une 
 
 ---
 
-### FEAT-003 · QR Code amélioré et partageable
+### FEAT-003 · QR Code amélioré et partageable - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐
 **Description** : Le QR code existe déjà côté backend mais n'est pas intégré dans l'UI.
 - Afficher le QR code dans le modal de complétion d'upload
@@ -47,7 +47,7 @@ Liste de fonctionnalités proposées pour transformer Ustrohosting Share en une 
 
 ---
 
-### FEAT-005 · Notifications push en temps réel
+### FEAT-005 · Notifications push en temps réel - Fait 🟢
 **Priorité** : ⭐⭐⭐
 **Description** : Notifications dans le navigateur (Service Worker / Web Push) pour informer les utilisateurs :
 - Quand quelqu'un télécharge leur fichier
@@ -166,7 +166,7 @@ Utiliser WebSockets (Socket.io) ou Server-Sent Events (SSE) pour le temps réel.
 
 ## ⚙️ Infrastructure & Scalabilité
 
-### FEAT-016 · Migration vers PostgreSQL
+### FEAT-016 · Migration vers PostgreSQL - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐⭐
 **Description** : Le système utilise actuellement SQLite, ce qui pose des limites en production :
 - Pas de connexions concurrentes fiables
@@ -193,7 +193,7 @@ Migrer vers PostgreSQL permettrait :
 
 ---
 
-### FEAT-018 · Stockage multi-provider intelligent
+### FEAT-018 · Stockage multi-provider intelligent - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐
 **Description** : Actuellement, le système supporte LOCAL ou S3. Améliorer avec :
 - **Tiering automatique** : Fichiers récents sur SSD local, anciens fichiers migrés vers S3 (cold storage)
@@ -601,14 +601,255 @@ Pour une plateforme à grande échelle.
 
 ## 🔧 Checklist de scaling rapide
 
-- [ ] **Étape 1** : Migrer vers PostgreSQL (FEAT-016)
-- [ ] **Étape 2** : Activer S3 pour le stockage des fichiers
-- [ ] **Étape 3** : Mettre Cloudflare en frontal (CDN + protection)
-- [ ] **Étape 4** : Ajouter Redis pour les sessions et le cache
-- [ ] **Étape 5** : Externaliser les tâches lourdes (ZIP, email, scan) dans une queue
-- [ ] **Étape 6** : Déployer N instances derrière un load balancer
+- [x] **Étape 1** : Migrer vers PostgreSQL (FEAT-016) - *Réalisé* 🟢
+- [x] **Étape 2** : Activer S3 pour le stockage des fichiers (FEAT-018) et déployer le Tiering Intelligent en Cascade à 3 Niveaux avec Redondance Multi-MinIO (FEAT-020) - *Réalisé* 🟢
+- [x] **Étape 3** : Configurer Cloudflare en frontal pour le CDN et la protection (FEAT-022) - *Partiellement Réalisé* 🟢
+  - **Implémenté** : CDN activé via Workers pour les assets statiques et le cache de fichiers.
+  - **En attente** : Configuration du DNS load-balancing (Nginx/Traefik) et sécurisation avancée.
+- [x] **Étape 4** : Activer Redis pour le cache distribué (sessions/OAuth et cache global via Keyv/Redis) (FEAT-021) - *Réalisé et Vérifié* 🟢
+- [x] **Étape 5** : Externaliser les tâches de fond restantes (Emails, Scans ClamAV) dans une file d'attente (Note : le système ZIP est déjà optimal via flux direct S3 en RAM, sans file d'attente nécessaire) (FEAT-023) - *Réalisé et Validé* 🟢
+- [ ] **Étape 6** : Déployer N instances derrière un load balancer (stateless frontend scaling)
 - [ ] **Étape 7** : PostgreSQL read replicas pour les lectures analytics
 - [ ] **Étape 8** : Monitoring centralisé (Prometheus + Grafana)
 - [ ] **Étape 9** : Alerting automatisé (disk > 80%, latence > 500ms, error rate > 1%)
 - [ ] **Étape 10** : Backups automatiques quotidiens vers un stockage distant
+
+---
+
+## 🌐 Architecture Multi-Serveurs & Partage de Données (Stateless Scaling)
+
+Lorsque le site grandit et qu'on déploie plusieurs serveurs applicatifs (ex: Serveur 1 et Serveur 2) derrière un répartiteur de charge (Load Balancer comme Nginx ou Traefik) pour la redondance et la haute disponibilité, se pose la question de l'accès aux fichiers physiques.
+
+Si le Serveur 1 reçoit un upload local et le stocke sur son SSD, le Serveur 2 ne pourra pas le lire si un internaute est redirigé vers lui pour le téléchargement.
+
+### Solutions pour partager les fichiers entre serveurs
+
+#### 1. L'approche Cloud-Native : Le stockage découplé (S3 / MinIO / B2) — *Recommandée*
+C'est le moyen le plus simple et le plus robuste pour scaler à l'infini sans complexité matérielle.
+* **Fonctionnement** : Les serveurs applicatifs (Serveur 1 et Serveur 2) sont **stateless** (sans état). Ils ne stockent aucun fichier localement.
+* **Mécanique** :
+  1. Les deux serveurs se connectent à la même base de données **PostgreSQL** centrale.
+  2. Les fichiers physiques sont envoyés et récupérés directement depuis un stockage objet partagé (ex: **Backblaze B2** ou votre serveur **MinIO 24 To**).
+* **Partage de session/cache via Redis** : 
+  - Pour que les instances partagent le cache de manière cohérente, **Redis** est activé (`cache.redis-enabled` à `true`). 
+  - Le backend NestJS configure automatiquement `@keyv/redis` comme magasin de cache global distribué.
+  - Ainsi, les nonces d'authentification générés par les providers OAuth (Google, Microsoft, OIDC) ou toute autre donnée mise en cache sont immédiatement accessibles par toutes les instances applicatives, garantissant une expérience utilisateur fluide sans sessions collantes ("sticky sessions").
+* **Pourquoi c'est l'idéal ?**
+  - Si le Serveur 1 crash, le Load Balancer bascule tout le trafic sur le Serveur 2. Ce dernier accède à la même BDD et aux mêmes fichiers S3. Aucun fichier n'est perdu ni inaccessible.
+  - La bande passante est optimisée via les **Presigned URLs** : le client uploade et télécharge son fichier de 10 Go en direct avec le serveur de stockage (B2 ou MinIO), déchargeant totalement le CPU et la bande passante de vos serveurs applicatifs.
+
+#### 2. L'approche Physique / Réseau : Le dossier partagé par réseau (NFS / Ceph)
+Si vous souhaitez conserver des fichiers stockés "localement" sur le disque dur physique de vos propres machines sans protocole S3 :
+* **Fonctionnement** : Vous utilisez un protocole de fichier réseau comme **NFS (Network File System)** ou **GlusterFS** (système de fichiers distribué).
+* **Mécanique** :
+  1. Le Serveur 1 (qui a le gros stockage) partage son répertoire de données via NFS sur le réseau local.
+  2. Le Serveur 2 monte ce partage NFS réseau dans son propre dossier local `./data/files`.
+* **Pourquoi cette approche a des limites ?**
+  - Le Serveur 1 devient le "Single Point of Failure" (point de défaillance unique) pour le stockage : s'il s'éteint, le Serveur 2 ne peut plus lire aucun fichier.
+  - NFS à travers Internet ou sur un réseau local lent introduit une latence et ralentit les temps de réponse de l'application.
+
+---
+
+## 📈 Plan Écrit de Résolution de la Saturation (1 To SSD)
+
+> [!NOTE]
+> **Statut : Entièrement Implémenté et Déployé** 🟢
+> Ce plan de résolution est actif et entièrement géré de manière automatique avec une barrière absolue de 100 Go libres sur le SSD local et des cron-jobs de régulation.
+
+Pour tirer le meilleur parti de votre serveur de 1 To tout en évitant les interruptions de service, le plan de transition se structure en 3 paliers automatiques et configurables :
+
+### Palier A · Tiering dynamique et proactif (0 à 800 Go occupés)
+* **Objectif** : Garder un maximum de fichiers récents sur le SSD local ultra-rapide.
+* **Fonctionnement** :
+  - Un cron s'exécute toutes les nuits à 2h00 pour déplacer vers MinIO (24 To) ou B2 tous les partages de plus de `X` jours.
+  - L'empreinte unique en base de données (CAS via hash `_files/${hash}`) évite les doublons de fichiers à la source.
+
+### Palier B · Alerte et Accélération du Tiering (800 Go à 900 Go occupés)
+* **Objectif** : Empêcher le serveur d'atteindre sa limite critique.
+* **Fonctionnement** :
+  - Si l'espace disque du serveur 1 To descend en dessous de 20 % (seuil configurable), l'application bascule automatiquement en mode **Tiering Accéléré**.
+  - Le cron de migration ne s'exécute plus quotidiennement mais **toutes les heures**, vidant activement le SSD local vers le stockage cloud/externe.
+  - L'administrateur reçoit une alerte système (Notification Push et Mail).
+
+### Palier C · Failover "S3 Direct" de secours (Au-delà de 900 Go occupés)
+* **Objectif** : Assurer la continuité de service des uploads même si le disque principal est saturé.
+* **Fonctionnement** :
+  - Si le disque local franchit le seuil de 90 % d'utilisation (100 Go restants), l'application active automatiquement le mode **Direct-to-S3** pour tous les nouveaux uploads.
+  - Les fichiers n'écrivent plus un seul octet sur le SSD local du serveur principal. Ils sont dirigés instantanément et à 100 % vers l'espace de stockage externe (MinIO 24 To ou Backblaze B2) jusqu'à ce que l'administrateur libère du stockage ou agrandisse le disque dur.
+
+---
+
+## 🗄️ Tiering Intelligent à 3 Niveaux (Hot ➔ Warm ➔ Cold)
+
+> [!NOTE]
+> **Statut : Entièrement Implémenté et Déployé** 🟢
+> L'architecture supporte pleinement le cycle de vie local SSD ➔ MinIO LAN ➔ Cloud B2 avec sharding applicatif RAID-0, mirroring RAID-1, et routage intelligent basé sur l'espace disponible réel.
+
+Pour concilier vitesse extrême, coût zéro (auto-hébergé) et sécurité infinie (cloud), l'architecture supporte un cycle de vie des données à **3 niveaux**.
+
+```mermaid
+flowchart LR
+    A["Client Upload"] -->|1. Écriture immédiate| B["Tier 1 : Hot (SSD 1 To)"]
+    B -->|2. Vieillissement (> 7 jours)| C["Tier 2 : Warm (MinIO 24 To)"]
+    C -->|3. Saturation (> 85% de 24 To)| D["Tier 3 : Cold (Backblaze B2 Cloud)"]
+    
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style D fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### Le Cycle de Vie d'un Fichier
+
+| Niveau | Emplacement | Type | Coût | Rôle dans l'application |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tier 1 : Hot** | SSD du serveur 1 To | Local | Gratuit | Nouveaux partages. Vitesse de lecture/écriture maximale pour l'uploader et les premiers téléchargements. |
+| **Tier 2 : Warm** | MinIO sur serveur 24 To | LAN (S3 local) | Gratuit | Archives et partages intermédiaires. Coût de stockage nul pour les gros volumes de données. |
+| **Tier 3 : Cold** | Backblaze B2 | Cloud (S3 distant) | ~5$/To/mois | Débordement de sécurité. Activé uniquement si le serveur de 24 To commence à manquer de place. |
+
+### Mécanisme de Migration Cascade (Tier 2 ➔ Tier 3)
+
+Pour gérer automatiquement le trop-plein du serveur de 24 To vers Backblaze B2, surtout si ce serveur est **partagé avec d'autres applications (ex: votre Nextcloud privé)**, le système n'utilise pas un simple pourcentage global fixe, mais l'une des deux stratégies configurables suivantes :
+
+#### Stratégie A · La mesure de l'Espace Libre Réel Restant (Recommandée pour colocation)
+* **Principe** : L'application se fiche de savoir qui consomme le stockage. Elle surveille uniquement l'**espace disque libre physique restant** sur le pool de stockage du serveur 24 To.
+* **Déclenchement** : 
+  - Vous configurez un seuil d'alerte en Go/To (ex: `s3.minioFreeSpaceLimit = 500GB` ou `1TB`).
+  - Si Nextcloud ou d'autres fichiers saturent le serveur et qu'il reste moins de 500 Go de libre au total, Pingvin Share le détecte et commence à migrer ses propres fichiers vers B2. Cela protège la machine entière contre une panne de disque saturé.
+
+#### Stratégie B · Le Quota dédié (Enveloppe budgétaire)
+* **Principe** : Vous allouez une part fixe du disque de 24 To à Pingvin Share (ex: 5 To maximum) afin de sanctuariser le reste pour Nextcloud.
+* **Déclenchement** :
+  - Sur MinIO, vous configurez un quota strict sur le bucket de l'application (ex: `mc quota set minio/pingvin-share --size 5TB`).
+  - Le script de tiering s'active dès que le bucket Pingvin Share atteint 85 % de son enveloppe dédiée (soit 4,25 To occupés), assurant que l'application ne débordera jamais sur l'espace réservé à Nextcloud.
+
+#### Fonctionnement de la Migration en Cascade :
+
+1. **Surveillance intelligente** :
+   Le backend NestJS interroge régulièrement l'API de stockage MinIO pour récupérer l'espace libre réel (Stratégie A) ou le taux de remplissage du quota du bucket (Stratégie B).
+
+2. **Ciblage sélectif** :
+   Dès que le seuil limite (espace libre insuffisant ou quota bucket presque atteint) est franchi :
+   - Le script cible les partages **les plus anciens** ou **les moins consultés** stockés sur le bucket local.
+   
+3. **Migration par flux directe (Cross-S3 Stream)** :
+   Le backend lit le fichier sous forme de flux depuis MinIO local et l'envoie en direct vers Backblaze B2 (en utilisant l'empreinte unique du hash `_files/${hash}`). Le serveur 1 To ne sert que de passerelle réseau temporaire sans stocker le fichier.
+   
+4. **Mise à jour atomique dans PostgreSQL** :
+   Une fois l'upload validé sur Backblaze B2 :
+   - Le champ `s3BucketId` du partage est mis à jour de `"minio-local-24tb"` vers `"backblaze-b2-cloud"`.
+   - Le fichier source est supprimé de MinIO pour libérer les 24 To physiques (seulement si ce hash n'est plus référencé par aucun autre partage sur MinIO).
+
+5. **Transparence Absolue** :
+   Pour vos utilisateurs, aucun changement. Ils cliquent sur le même lien, et le NestJS backend redirige dynamiquement le flux de téléchargement depuis Backblaze B2 plutôt que depuis votre MinIO. Vos données sont préservées, votre stockage local est libéré, et vous ne payez le cloud B2 que pour le strict nécessaire !
+
+---
+
+## ⚡ FEAT-021 : Cache Distribué avec Redis
+
+Le système possède un support natif complet et robuste pour Redis en tant que couche de cache globale partagée.
+
+### 🛠️ Architecture du Cache NestJS avec Redis
+
+```mermaid
+flowchart TD
+    subgraph Caching Layer (AppCacheModule)
+        A["CacheModule.registerAsync"] --> B{"cache.redis-enabled ?"}
+        B -->|Non / Défaut| C["CacheableMemory (Mémoire locale de l'instance)"]
+        B -->|Oui| D["Double Stockage (Multi-Store)"]
+        D --> E["Store 1 : CacheableMemory (L2 local, rapide, 5000 max items)"]
+        D --> F["Store 2 : @keyv/redis (L1 distribué partagé)"]
+    end
+
+    subgraph Cas d'usages Applicatifs
+        G["OAuth Providers (Google, Microsoft, OIDC)"] -->|set / get / del| A
+        H["Sécurité & Validations (Nonces, States)"] -->|Ex: oauth-google-nonce-{state}| A
+    end
+```
+
+#### 1. Configuration & Dépendances
+* **Dépendances de production** : Intégration de `@keyv/redis` (`^4.4.0`) et `@redis/client` (`^1.6.0`) pour un support natif performant.
+* **Variables d'environnement & Données de base** (`config.seed.ts`) :
+  - `cache.redis-enabled` (booléen, défaut: `false`) : Permet d'activer/désactiver la mise en cache globale Redis.
+  - `cache.redis-url` (chaîne de caractères, défaut: `redis://pingvin-redis:6379`, masqué en tant que variable secrète) : URL de connexion standard de l'instance Redis.
+  - `cache.ttl` (nombre, défaut: `60`) : Durée de vie par défaut des entrées de cache en secondes.
+  - `cache.maxItems` (nombre, défaut: `1000`) : Limite des éléments conservés en mémoire cache locale.
+
+#### 2. Logique d'initialisation (`cache.module.ts`)
+* Lors de la phase de bootstrap de l'application NestJS, le `AppCacheModule` charge de manière asynchrone les variables du `ConfigService`.
+* Si `cache.redis-enabled` est activé, il instancie un magasin à double niveau (**Multi-Store** Keyv) :
+  1. Un cache en mémoire vive de l'instance (`CacheableMemory`) avec une limite de 5000 éléments pour un accès ultra-rapide sans latence réseau.
+  2. Le magasin Redis distribué (`createKeyv(redisUrl)`) qui assure que toutes les instances s'accordent et partagent la même version des données.
+
+#### 3. Rôle dans l'Architecture Sans État (Stateless Multi-Instances)
+* **Élimination des sessions collantes** : Les jetons d'état d'authentification et nonces de sécurité générés par les modules d'authentification tierce (ex: Google, Microsoft Azure, Generic OpenID Connect) sont écrits dans la couche de cache globale avec un TTL de 5 minutes.
+* **Résilience** : Un utilisateur qui démarre un flux de connexion OAuth sur une instance de Pingvin Share (ex: *Serveur 1*) peut finaliser sa transaction et être redirigé de manière totalement transparente sur une autre instance (ex: *Serveur 2*) sans échec d'authentification, puisque le *Serveur 2* partage le même cache Redis distribué pour valider le `nonce` de sécurité.
+
+---
+
+## 🛡️ FEAT-023 : File d'attente d'e-mails (BullMQ) & Antivirus Intelligent avec Bypass
+
+Nous avons implémenté avec succès l'**Étape 5** de la checklist d'optimisation d'entreprise, en introduisant une gestion asynchrone des e-mails par file d'attente et un système haut de gamme d'analyse, d'alerte et d'approbation antivirus pour ClamAV.
+
+### 🛠️ Architecture Technique & Modifications Apportées
+
+```mermaid
+flowchart TD
+    subgraph File d'attente d'E-mails (BullMQ)
+        A["NestJS SMTP Mail Request"] --> B{"cache.redis-enabled ?"}
+        B -->|Oui| C["Enregistrement dans la Queue BullMQ"]
+        B -->|Non / Hors-ligne| D["Fallback synchrone direct (Nodemailer)"]
+        C -->|Job asynchrone| E["Email Worker (Arrière-plan)"]
+        E -->|Envoi SMTP réussi| F["Log Succès"]
+        E -->|Échec connexion SMTP| G["Retente auto 3 fois (Backoff exponentiel)"]
+    end
+
+    subgraph Antivirus Intelligent & Whitelisting Admin
+        H["Upload anonyme ou reverse share"] --> I["Scan ClamAV"]
+        I -->|Fichier infecté ou suspect| J["Database: isSuspect=true, virusName=threat"]
+        J -->|Pas d'effacement physique| K["Préservation des fichiers sur SSD/S3"]
+        
+        L["Visiteur télécharge le fichier"] --> M{"isSuspect & !isApproved ?"}
+        M -->|Oui| N["Affichage de la Modal Premium Mantine (Warning)"]
+        N -->|Bouton Ignorer et télécharger| O["Téléchargement forcé via S3/Local"]
+        N -->|Bouton Annuler| P["Fermeture Modal"]
+        
+        Q["Administrateur sur /admin/shares"] -->|Visualise Badge Suspect| R["Action inline: 'Approuver'"]
+        R -->|POST /shares/:id/files/:fileId/approve| S["isApproved=true, isSuspect=false en base de données"]
+        S -->|Effet immédiat| T["Whitelisting global et disparition des alertes"]
+    end
+```
+
+#### 1. File d'attente asynchrone d'e-mails (BullMQ & Redis)
+* **Intégration de BullMQ** : Ajout et installation de `@nestjs/bullmq` et `bullmq` en dépendances de production.
+* **Architecture résiliente dynamique (`email.service.ts`)** :
+  * Le bootstrap instancie dynamiquement les objets natifs BullMQ `Queue` et `Worker` si `cache.redis-enabled` est activé en base de données, évitant ainsi tout couplage ou erreur d'injection de dépendances NestJS dans les environnements de déploiement autonomes qui n'utilisent pas Redis.
+  * Les invitations de partage et notifications SMTP sont automatiquement encapsulées sous forme de jobs asynchrones poussés dans la file d'attente `"email-queue"`, configurés avec **3 tentatives automatiques** et un **délai de reprise (backoff) exponentiel de 5 secondes**.
+  * Si Redis est désactivé ou subit une panne de connexion réseau, le système de messagerie bascule immédiatement et de manière totalement transparente vers un mode de fallback direct par Nodemailer synchrone afin d'offrir une continuité de service irréprochable.
+
+#### 2. Antivirus intelligent non destructif (ClamAV)
+* **Bypass pour utilisateurs authentifiés (`clamscan.service.ts`)** :
+  * Les analyses antivirus ClamAV sont complètement contournées pour les partages créés par des administrateurs et des utilisateurs enregistrés de confiance (`share.creatorId !== null`). Seuls les partages d'invités/anonymes et les reverse shares externes sont soumis à l'analyse.
+* **Marquage en base de données non destructif** :
+  * Le schéma Prisma (`schema.prisma`) intègre trois nouveaux champs : `isSuspect` (booléen par défaut `false`), `virusName` (chaîne de caractères optionnelle) et `isApproved` (booléen par défaut `false`).
+  * En cas de signature suspecte détectée par ClamAV, le fichier physique n'est plus effacé brutalement. L'enregistrement PostgreSQL correspondant est mis à jour (`isSuspect = true`, `virusName = virus`), préservant l'intégrité de l'upload pour permettre une vérification humaine.
+
+#### 3. Endpoint d'approbation et DTOs de protection
+* **Exposition API (`file.controller.ts`)** :
+  * Création d'une nouvelle route `POST /api/shares/:shareId/files/:fileId/approve` protégée par `JwtGuard` et `AdministratorGuard` pour accorder des droits d'approbation exclusifs aux administrateurs.
+* **Sécurisation de type et DTOs** :
+  * Mise à jour de `FileDTO` (`file.dto.ts`) pour exposer les propriétés `isSuspect`, `virusName` et `isApproved`.
+  * Ajustement de `AdminShareDTO` (`adminShare.dto.ts`) en utilisant l'utilitaire `OmitType` afin d'intégrer proprement les collections de fichiers et de contourner les restrictions strictes de typages lors des lectures administratives de PostgreSQL.
+
+#### 4. Interface publique premium et Modal d'avertissement Mantine
+* **Liste de fichiers réactive (`FileList.tsx`)** :
+  * Si un fichier est marqué suspect et non approuvé, l'icône générique est remplacée par une icône d'alerte orange/rouge vibrante `TbAlertTriangle`, son nom s'affiche en rouge foncé avec l'indication précise de la menace détectée entre parenthèses.
+  * Au clic sur le bouton de téléchargement, une **Modal de confirmation Premium Mantine** s'affiche. Elle informe le visiteur avec bienveillance, lui détaille la nature de la menace et l'existence potentielle de faux positifs (ex: cracks sains, scripts), et lui présente deux choix : *« Ignorer et télécharger »* (déclenche le transfert de fichier) ou *« Annuler »*.
+
+#### 5. Tableau de bord administratif & Approbation en un clic
+* **Whitelisting inline (`ManageShareTable.tsx`)** :
+  * L'administrateur visualise instantanément les partages contenant des fichiers suspects grâce à l'apparition de conteneurs à bordures pointillées rouges intégrant le nom des fichiers et la signature de la menace.
+  * Un bouton d'action directe en un clic **« Approuver »** appelle l'API d'approbation administrative du backend. Lors du succès, le fichier est instantanément marqué approuvé et sain en base de données, éliminant en temps réel les alertes de sécurité pour tous les visiteurs du site, accompagné d'un toast de notification vert premium.
+
+
+
 

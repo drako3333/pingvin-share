@@ -2,16 +2,61 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  OnModuleInit,
+  OnModuleDestroy,
 } from "@nestjs/common";
 import { User } from "@prisma/client";
 import * as moment from "moment";
 import * as nodemailer from "nodemailer";
 import { ConfigService } from "src/config/config.service";
+import { Queue, Worker } from "bullmq";
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit, OnModuleDestroy {
   constructor(private config: ConfigService) {}
   private readonly logger = new Logger(EmailService.name);
+  private emailQueue: Queue;
+  private emailWorker: Worker;
+
+  async onModuleInit() {
+    if (this.config.get("cache.redis-enabled")) {
+      try {
+        const redisUrl = this.config.get("cache.redis-url") || "redis://pingvin-redis:6379";
+        const connectionOptions = { url: redisUrl };
+
+        this.emailQueue = new Queue("email-queue", { connection: connectionOptions });
+        this.emailWorker = new Worker(
+          "email-queue",
+          async (job) => {
+            const { email, subject, text } = job.data;
+            await this.sendMailDirect(email, subject, text);
+          },
+          { connection: connectionOptions }
+        );
+
+        this.emailWorker.on("failed", (job, err) => {
+          this.logger.error(`Email job ${job?.id} failed: ${err.message}`);
+        });
+
+        this.logger.log("Redis Email Queue & Worker initialized successfully.");
+      } catch (err) {
+        this.logger.error("Failed to initialize Redis Email Queue", err);
+      }
+    }
+  }
+
+  async onModuleDestroy() {
+    try {
+      if (this.emailWorker) {
+        await this.emailWorker.close();
+      }
+      if (this.emailQueue) {
+        await this.emailQueue.close();
+      }
+    } catch (err) {
+      this.logger.error("Error during Email Queue cleanup", err);
+    }
+  }
 
   getTransporter() {
     if (!this.config.get("smtp.enabled"))
@@ -34,7 +79,7 @@ export class EmailService {
     });
   }
 
-  private async sendMail(email: string, subject: string, text: string) {
+  async sendMailDirect(email: string, subject: string, text: string) {
     await this.getTransporter()
       .sendMail({
         from: `"${this.config.get("general.appName")}" <${this.config.get(
@@ -48,6 +93,32 @@ export class EmailService {
         this.logger.error(e);
         throw new InternalServerErrorException("Failed to send email");
       });
+  }
+
+  private async sendMail(email: string, subject: string, text: string) {
+    if (this.emailQueue) {
+      try {
+        await this.emailQueue.add(
+          "send",
+          { email, subject, text },
+          {
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 5000,
+            },
+          },
+        );
+        this.logger.log(`Email job queued for ${email}`);
+      } catch (err) {
+        this.logger.error(
+          `Failed to queue email, falling back to direct sending: ${err.message}`,
+        );
+        await this.sendMailDirect(email, subject, text);
+      }
+    } else {
+      await this.sendMailDirect(email, subject, text);
+    }
   }
 
   async sendMailToShareRecipients(
@@ -121,6 +192,24 @@ export class EmailService {
         .replaceAll("{password}", password)
         .replaceAll("{email}", recipientEmail),
     );
+  }
+
+  async sendBurnAfterReadingNotification(
+    creatorEmail: string,
+    shareId: string,
+  ) {
+    const appName = this.config.get("general.appName");
+    const subject = `[${appName}] Partage consulté et détruit — ${shareId}`;
+    const text = [
+      `Bonjour,`,
+      ``,
+      `Votre partage "${shareId}" marqué "Burn After Reading" a été consulté.`,
+      `Conformément à vos paramètres de sécurité, ce partage et tous ses fichiers ont été automatiquement et définitivement supprimés.`,
+      ``,
+      `— ${appName}`,
+    ].join("\n");
+
+    await this.sendMail(creatorEmail, subject, text);
   }
 
   async sendTestMail(recipientEmail: string) {

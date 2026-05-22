@@ -1,7 +1,13 @@
-import { Button, Card, Group, Text, useMantineTheme } from "@mantine/core";
+import {
+  Button,
+  Card,
+  Group,
+  Text,
+  useMantineColorScheme,
+} from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { cleanNotifications } from "@mantine/notifications";
-import { AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
 import pLimit from "p-limit";
 import { useEffect, useRef, useState } from "react";
 import { FormattedMessage } from "react-intl";
@@ -35,8 +41,8 @@ const Upload = ({
   const modals = useModals();
   const router = useRouter();
   const t = useTranslate();
-  const theme = useMantineTheme();
-  const isDark = theme.colorScheme === "dark";
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === "dark";
 
   const { user } = useUser();
   const config = useConfig();
@@ -71,7 +77,10 @@ const Upload = ({
     }
 
     const interval = setInterval(() => {
-      const totalBytesUploaded = Object.values(bytesUploadedRef.current).reduce((a, b) => a + b, 0);
+      const totalBytesUploaded = Object.values(bytesUploadedRef.current).reduce(
+        (a, b) => a + b,
+        0,
+      );
       const deltaBytes = Math.max(0, totalBytesUploaded - lastBytesRef.current);
       lastBytesRef.current = totalBytesUploaded;
 
@@ -102,25 +111,67 @@ const Upload = ({
 
         if (filesMatch) {
           // Verify if the share still exists on the server
-          shareService.isShareIdAvailable(pendingShare.id).then((isAvailable) => {
-            if (isAvailable) {
-              // The share ID is available, meaning the share DOES NOT exist on the server (expired/deleted).
-              // Clean up localStorage immediately.
-              localStorage.removeItem("pingvin_pending_share");
-              files.forEach((_, idx) => {
-                localStorage.removeItem(`pingvin_pending_share_progress_${pendingShare.id}_${idx}`);
-              });
-            } else {
+          shareService
+            .isShareIdAvailable(pendingShare.id)
+            .then((isAvailable) => {
+              if (isAvailable) {
+                // The share ID is available, meaning the share DOES NOT exist on the server (expired/deleted).
+                // Clean up localStorage immediately.
+                localStorage.removeItem("pingvin_pending_share");
+                files.forEach((_, idx) => {
+                  localStorage.removeItem(
+                    `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                  );
+                });
+              } else {
+                modals.openConfirmModal({
+                  title: t("analytics.resume.title"),
+                  children: t("analytics.resume.description"),
+                  labels: {
+                    confirm: t("analytics.resume.confirm"),
+                    cancel: t("analytics.resume.cancel"),
+                  },
+                  onConfirm: () => {
+                    const restoredFiles = files.map((f, idx) => {
+                      const savedProgress = localStorage.getItem(
+                        `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                      );
+                      f.uploadingProgress = savedProgress
+                        ? parseFloat(savedProgress)
+                        : 0;
+                      return f;
+                    });
+                    setFiles(restoredFiles);
+                    uploadFiles({} as any, restoredFiles, pendingShare.id);
+                  },
+                  onCancel: () => {
+                    localStorage.removeItem("pingvin_pending_share");
+                    files.forEach((_, idx) => {
+                      localStorage.removeItem(
+                        `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                      );
+                    });
+                  },
+                });
+              }
+            })
+            .catch(() => {
+              // Offline/error fallback: show resume prompt
               modals.openConfirmModal({
                 title: t("analytics.resume.title"),
                 children: t("analytics.resume.description"),
-                labels: { confirm: t("analytics.resume.confirm"), cancel: t("analytics.resume.cancel") },
+                labels: {
+                  confirm: t("analytics.resume.confirm"),
+                  cancel: t("analytics.resume.cancel"),
+                },
                 onConfirm: () => {
                   const restoredFiles = files.map((f, idx) => {
                     const savedProgress = localStorage.getItem(
                       `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
                     );
-                    f.uploadingProgress = savedProgress ? parseFloat(savedProgress) : 0;
+                    f.uploadingProgress = savedProgress
+                      ? parseFloat(savedProgress)
+                      : 0;
                     return f;
                   });
                   setFiles(restoredFiles);
@@ -129,42 +180,23 @@ const Upload = ({
                 onCancel: () => {
                   localStorage.removeItem("pingvin_pending_share");
                   files.forEach((_, idx) => {
-                    localStorage.removeItem(`pingvin_pending_share_progress_${pendingShare.id}_${idx}`);
+                    localStorage.removeItem(
+                      `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
+                    );
                   });
                 },
               });
-            }
-          }).catch(() => {
-            // Offline/error fallback: show resume prompt
-            modals.openConfirmModal({
-              title: t("analytics.resume.title"),
-              children: t("analytics.resume.description"),
-              labels: { confirm: t("analytics.resume.confirm"), cancel: t("analytics.resume.cancel") },
-              onConfirm: () => {
-                const restoredFiles = files.map((f, idx) => {
-                  const savedProgress = localStorage.getItem(
-                    `pingvin_pending_share_progress_${pendingShare.id}_${idx}`,
-                  );
-                  f.uploadingProgress = savedProgress ? parseFloat(savedProgress) : 0;
-                  return f;
-                });
-                setFiles(restoredFiles);
-                uploadFiles({} as any, restoredFiles, pendingShare.id);
-              },
-              onCancel: () => {
-                localStorage.removeItem("pingvin_pending_share");
-                files.forEach((_, idx) => {
-                  localStorage.removeItem(`pingvin_pending_share_progress_${pendingShare.id}_${idx}`);
-                });
-              },
             });
-          });
         }
       }
     }
   }, [files]);
 
-  const uploadFiles = async (share: CreateShare, files: FileUpload[], existingShareId?: string) => {
+  const uploadFiles = async (
+    share: CreateShare,
+    files: FileUpload[],
+    existingShareId?: string,
+  ) => {
     setisUploading(true);
 
     try {
@@ -172,7 +204,10 @@ const Upload = ({
       if (existingShareId) {
         createdShareRef.current = { id: existingShareId } as any;
       } else {
-        createdShareRef.current = await shareService.create(share, isReverseShare);
+        createdShareRef.current = await shareService.create(
+          share,
+          isReverseShare,
+        );
       }
 
       // Save upload states to localStorage
@@ -210,8 +245,148 @@ const Upload = ({
         };
 
         const currentSavedProgress = parseFloat(
-          localStorage.getItem(`pingvin_pending_share_progress_${createdShareRef.current!.id}_${fileIndex}`) || "0",
+          localStorage.getItem(
+            `pingvin_pending_share_progress_${createdShareRef.current!.id}_${fileIndex}`,
+          ) || "0",
         );
+
+        // Check if we should use S3/B2 multipart direct upload
+        let s3UploadInfo = null;
+        const savedS3Str = localStorage.getItem(`pingvin_pending_s3_${createdShareRef.current!.id}_${fileIndex}`);
+        if (savedS3Str) {
+          s3UploadInfo = JSON.parse(savedS3Str);
+        } else {
+          try {
+            const initiateRes = await shareService.initiateMultipart(
+              createdShareRef.current!.id,
+              file.name,
+              file.size
+            );
+            if (initiateRes && initiateRes.storageProvider === "S3") {
+              s3UploadInfo = initiateRes;
+              localStorage.setItem(
+                `pingvin_pending_s3_${createdShareRef.current!.id}_${fileIndex}`,
+                JSON.stringify(s3UploadInfo)
+              );
+            }
+          } catch (initErr) {
+            console.error("Failed to initiate S3 multipart upload, falling back to LOCAL:", initErr);
+          }
+        }
+
+        if (s3UploadInfo && s3UploadInfo.storageProvider === "S3") {
+          const { fileId: s3FileId, uploads } = s3UploadInfo;
+
+          // 1. Calculate / read file hash
+          setFileProgress(Math.max(1, currentSavedProgress));
+          let fileHash = "";
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            fileHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+          } catch (e) {
+            fileHash = Math.random().toString(36).substring(2) + Date.now().toString(36);
+          }
+
+          // 2. Override chunk size (S3 requires minimum 5MB per chunk)
+          const s3ChunkSize = Math.max(5 * 1024 * 1024, chunkSize.current);
+          let chunks = Math.ceil(file.size / s3ChunkSize);
+          if (chunks === 0) chunks++;
+
+          let startChunkIndex = 0;
+          if (currentSavedProgress > 0 && currentSavedProgress < 100) {
+            startChunkIndex = Math.floor((currentSavedProgress / 100) * chunks);
+          }
+
+          // 3. Setup or resume bucket parts ETags
+          let bucketParts: Record<string, Array<{ ETag: string; PartNumber: number }>> = {};
+          const savedPartsStr = localStorage.getItem(`pingvin_pending_s3_parts_${createdShareRef.current!.id}_${fileIndex}`);
+          if (savedPartsStr) {
+            bucketParts = JSON.parse(savedPartsStr);
+          } else {
+            uploads.forEach((u: any) => {
+              bucketParts[u.bucketId] = [];
+            });
+          }
+
+          // 4. Upload loop
+          for (let chunkIndex = startChunkIndex; chunkIndex < chunks; chunkIndex++) {
+            const from = chunkIndex * s3ChunkSize;
+            const to = Math.min(from + s3ChunkSize, file.size);
+            const blob = file.slice(from, to);
+
+            bytesUploadedRef.current[fileIndex] = from;
+
+            try {
+              // Sign this part across all upload destinations
+              const signRes = await shareService.signPart(
+                createdShareRef.current!.id,
+                s3FileId,
+                chunkIndex + 1,
+                uploads.map((u: any) => ({ bucketId: u.bucketId, uploadId: u.uploadId }))
+              );
+
+              // Upload chunk to each presigned S3/B2 URL
+              const putPromises = signRes.urls.map(async ({ bucketId, url }: any) => {
+                const response = await axios.put(url, blob, {
+                  headers: { "Content-Type": "application/octet-stream" },
+                });
+                const etag = response.headers["etag"] || response.headers["ETag"];
+                if (!etag) {
+                  throw new Error("Missing ETag header from S3 upload response");
+                }
+                
+                // Keep only one entry per PartNumber for this bucket
+                bucketParts[bucketId] = bucketParts[bucketId].filter(
+                  (p: any) => p.PartNumber !== chunkIndex + 1
+                );
+                bucketParts[bucketId].push({
+                  ETag: etag.replace(/"/g, ""), // Remove surrounding quotes
+                  PartNumber: chunkIndex + 1,
+                });
+              });
+
+              await Promise.all(putPromises);
+
+              // Persist ETag states to handle browser crash or network cut resumes
+              localStorage.setItem(
+                `pingvin_pending_s3_parts_${createdShareRef.current!.id}_${fileIndex}`,
+                JSON.stringify(bucketParts)
+              );
+
+              bytesUploadedRef.current[fileIndex] = to;
+              setFileProgress(((chunkIndex + 1) / chunks) * 100);
+            } catch (err) {
+              setFileProgress(-1);
+              // Wait 5 seconds and retry the SAME chunk
+              await new Promise((resolve) => setTimeout(resolve, 5000));
+              chunkIndex--;
+              continue;
+            }
+          }
+
+          // 5. Finalize the multipart upload in the backend
+          const completeUploads = uploads.map((u: any) => ({
+            bucketId: u.bucketId,
+            uploadId: u.uploadId,
+            parts: bucketParts[u.bucketId],
+          }));
+
+          await shareService.completeMultipart(
+            createdShareRef.current!.id,
+            s3FileId,
+            file.name,
+            file.size,
+            fileHash,
+            completeUploads
+          );
+
+          // Clear S3 temporary keys
+          localStorage.removeItem(`pingvin_pending_s3_${createdShareRef.current!.id}_${fileIndex}`);
+          localStorage.removeItem(`pingvin_pending_s3_parts_${createdShareRef.current!.id}_${fileIndex}`);
+          return;
+        }
 
         let chunks = Math.ceil(file.size / chunkSize.current);
         if (chunks == 0) chunks++;
@@ -223,7 +398,11 @@ const Upload = ({
 
         setFileProgress(Math.max(1, currentSavedProgress));
 
-        for (let chunkIndex = startChunkIndex; chunkIndex < chunks; chunkIndex++) {
+        for (
+          let chunkIndex = startChunkIndex;
+          chunkIndex < chunks;
+          chunkIndex++
+        ) {
           const from = chunkIndex * chunkSize.current;
           const to = from + chunkSize.current;
           const blob = file.slice(from, to);
@@ -335,7 +514,9 @@ const Upload = ({
           // Clean localStorage keys
           localStorage.removeItem("pingvin_pending_share");
           files.forEach((_, idx) => {
-            localStorage.removeItem(`pingvin_pending_share_progress_${createdShareRef.current!.id}_${idx}`);
+            localStorage.removeItem(
+              `pingvin_pending_share_progress_${createdShareRef.current!.id}_${idx}`,
+            );
           });
         })
         .catch(() => toast.error(t("upload.notify.generic-error")));
@@ -378,14 +559,17 @@ const Upload = ({
   };
 
   const totalFilesSize = files.reduce((n, { size }) => n + size, 0);
-  const totalUploaded = Object.values(bytesUploadedRef.current).reduce((a, b) => a + b, 0);
+  const totalUploaded = Object.values(bytesUploadedRef.current).reduce(
+    (a, b) => a + b,
+    0,
+  );
   const remainingBytes = Math.max(0, totalFilesSize - totalUploaded);
   const etaSeconds = currentSpeed > 0 ? remainingBytes / currentSpeed : 0;
 
   return (
     <>
       <Meta title={t("upload.title")} />
-      <Group position="right" mb={20}>
+      <Group justify="flex-end" mb={20}>
         <Button
           loading={isUploading}
           disabled={files.length <= 0}
@@ -404,24 +588,40 @@ const Upload = ({
           withBorder
           style={{
             backdropFilter: "blur(8px)",
-            background: isDark ? "rgba(26, 27, 30, 0.75)" : "rgba(255, 255, 255, 0.75)",
-            borderColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
+            background: isDark
+              ? "rgba(26, 27, 30, 0.75)"
+              : "rgba(255, 255, 255, 0.75)",
+            borderColor: isDark
+              ? "rgba(255, 255, 255, 0.08)"
+              : "rgba(0, 0, 0, 0.06)",
           }}
         >
-          <Group position="apart" align="center">
+          <Group justify="space-between" align="center">
             <div>
-              <Text size="xs" color="dimmed" weight={600} transform="uppercase" style={{ letterSpacing: "0.05em" }}>
+              <Text
+                size="xs"
+                c="dimmed"
+                fw={600}
+                tt="uppercase"
+                style={{ letterSpacing: "0.05em" }}
+              >
                 {t("analytics.upload-speed")}
               </Text>
-              <Text size="xl" weight={800} color="blue">
+              <Text size="xl" fw={800} color="blue">
                 {byteToHumanSizeString(currentSpeed)}/s
               </Text>
             </div>
             <div>
-              <Text size="xs" color="dimmed" weight={600} transform="uppercase" style={{ letterSpacing: "0.05em" }}>
+              <Text
+                size="xs"
+                c="dimmed"
+                fw={600}
+                tt="uppercase"
+                style={{ letterSpacing: "0.05em" }}
+              >
                 {t("analytics.time-remaining")}
               </Text>
-              <Text size="xl" weight={800}>
+              <Text size="xl" fw={800}>
                 {formatSeconds(etaSeconds)}
               </Text>
             </div>
