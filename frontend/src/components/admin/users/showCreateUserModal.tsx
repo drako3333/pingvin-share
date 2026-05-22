@@ -13,6 +13,7 @@ import * as yup from "yup";
 import useTranslate from "../../../hooks/useTranslate.hook";
 import userService from "../../../services/user.service";
 import toast from "../../../utils/toast.util";
+import FileSizeInput from "../../core/FileSizeInput";
 
 const showCreateUserModal = (
   modals: ModalsContextProps,
@@ -44,6 +45,8 @@ const Body = ({
       password: undefined,
       isAdmin: false,
       setPasswordManually: false,
+      hasCustomQuota: false,
+      storageQuota: 10000000000,
     },
     validate: schemaResolver(
       yup.object().shape({
@@ -63,8 +66,13 @@ const Body = ({
     <Stack>
       <form
         onSubmit={form.onSubmit(async (values) => {
+          const { hasCustomQuota, storageQuota, ...rest } = values;
+          const payload = {
+            ...rest,
+            storageQuota: hasCustomQuota ? storageQuota : 0,
+          };
           userService
-            .create(values)
+            .create(payload)
             .then(() => {
               getUsers();
               modals.closeAll();
@@ -113,6 +121,26 @@ const Body = ({
             description={t("admin.users.modal.create.admin.description")}
             {...form.getInputProps("isAdmin", { type: "checkbox" })}
           />
+          <Switch
+            styles={{
+              body: {
+                display: "flex",
+                justifyContent: "space-between",
+              },
+            }}
+            mt="xs"
+            labelPosition="left"
+            label={t("admin.users.modal.create.custom-quota")}
+            description={t("admin.users.modal.create.custom-quota.description")}
+            {...form.getInputProps("hasCustomQuota", { type: "checkbox" })}
+          />
+          {form.values.hasCustomQuota && (
+            <FileSizeInput
+              label={t("admin.users.modal.create.quota")}
+              value={form.values.storageQuota}
+              onChange={(value) => form.setFieldValue("storageQuota", value)}
+            />
+          )}
           <Group justify="flex-end">
             <Button type="submit">
               <FormattedMessage id="common.button.create" />

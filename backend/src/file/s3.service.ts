@@ -275,6 +275,13 @@ export class S3FileService {
             share: { connect: { id: shareId } },
           },
         });
+
+        const share = await this.prisma.share.findUnique({
+          where: { id: shareId },
+        });
+        if (share?.creatorId) {
+          await this.prisma.updateUserStorageUsed(share.creatorId);
+        }
       }
     } catch (error) {
       // Abort the multipart upload if it fails
@@ -381,6 +388,13 @@ export class S3FileService {
     }
 
     await this.prisma.file.delete({ where: { id: fileId } });
+
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+    });
+    if (share?.creatorId) {
+      await this.prisma.updateUserStorageUsed(share.creatorId);
+    }
   }
 
   async deleteAllFiles(shareId: string) {

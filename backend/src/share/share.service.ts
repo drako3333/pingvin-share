@@ -373,6 +373,10 @@ export class ShareService {
 
     await this.fileService.deleteAllFiles(shareId);
     await this.prisma.share.delete({ where: { id: shareId } });
+
+    if (share.creatorId) {
+      await this.prisma.updateUserStorageUsed(share.creatorId);
+    }
   }
 
   async isShareCompleted(id: string) {

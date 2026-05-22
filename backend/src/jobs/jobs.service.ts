@@ -54,6 +54,10 @@ export class JobsService implements OnModuleInit {
       await this.prisma.share.delete({
         where: { id: expiredShare.id },
       });
+
+      if (expiredShare.creatorId) {
+        await this.prisma.updateUserStorageUsed(expiredShare.creatorId);
+      }
     }
 
     if (expiredShares.length > 0) {
@@ -95,6 +99,10 @@ export class JobsService implements OnModuleInit {
       });
 
       await this.fileService.deleteAllFiles(unfinishedShare.id);
+
+      if (unfinishedShare.creatorId) {
+        await this.prisma.updateUserStorageUsed(unfinishedShare.creatorId);
+      }
     }
 
     if (unfinishedShares.length > 0) {

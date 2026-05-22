@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -83,11 +84,29 @@ export class FileController {
       name: string;
       chunkIndex: string;
       totalChunks: string;
+      size?: string;
     },
     @Body() body: string,
     @Param("shareId") shareId: string,
   ) {
     const { id, name, chunkIndex, totalChunks } = query;
+
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+      include: { creator: true },
+    });
+
+    if (share && share.creator) {
+      const fileSize = query.size ? parseInt(query.size) : 0;
+      const currentStorageUsed = Number(share.creator.storageUsed);
+      const userQuota = Number(share.creator.storageQuota);
+      const defaultQuota = this.configService.get("share.defaultUserQuota") as number;
+      const storageQuota = userQuota > 0 ? userQuota : defaultQuota;
+
+      if (currentStorageUsed + fileSize > storageQuota) {
+        throw new BadRequestException("Storage quota exceeded");
+      }
+    }
 
     const globalUploadRateLimit = parseInt(
       this.configService.get("share.globalUploadRateLimit") || "0",

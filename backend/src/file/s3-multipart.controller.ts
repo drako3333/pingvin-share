@@ -42,9 +42,20 @@ export class S3MultipartController {
 
     const share = await this.prisma.share.findUnique({
       where: { id: shareId },
-      include: { security: true },
+      include: { security: true, creator: true },
     });
     if (!share) throw new BadRequestException("Share not found");
+
+    if (share.creator) {
+      const currentStorageUsed = Number(share.creator.storageUsed);
+      const userQuota = Number(share.creator.storageQuota);
+      const defaultQuota = this.configService.get("share.defaultUserQuota") as number;
+      const storageQuota = userQuota > 0 ? userQuota : defaultQuota;
+
+      if (currentStorageUsed + size > storageQuota) {
+        throw new BadRequestException("Storage quota exceeded");
+      }
+    }
 
     // 1. Enforce SSD 100 GB absolute safety limit
     const disk = await getDiskSpace(SHARE_DIRECTORY);
@@ -246,6 +257,13 @@ export class S3MultipartController {
         share: { connect: { id: shareId } },
       },
     });
+
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+    });
+    if (share?.creatorId) {
+      await this.prisma.updateUserStorageUsed(share.creatorId);
+    }
 
     return fileRecord;
   }

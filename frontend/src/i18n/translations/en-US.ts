@@ -90,6 +90,12 @@ export default {
   "account.card.info.username": "Username",
   "account.card.info.email": "Email",
   "account.notify.info.success": "Account updated successfully",
+  "account.storage.title": "Storage space",
+  "account.storage.used": "used",
+  "account.storage.alert.critical.title": "Storage space almost full!",
+  "account.storage.alert.critical.description": "You have used more than 95% of your storage quota. Free up some space or contact an administrator.",
+  "account.storage.alert.warning.title": "Storage space soon full",
+  "account.storage.alert.warning.description": "You have exceeded 80% of your authorized storage quota.",
 
   "account.card.password.title": "Password",
   "account.card.password.old": "Old password",
@@ -281,6 +287,9 @@ export default {
   "admin.users.modal.create.admin": "Admin privileges",
   "admin.users.modal.create.admin.description":
     "If checked, the user will be able to access the admin panel.",
+  "admin.users.modal.create.custom-quota": "Define a custom quota",
+  "admin.users.modal.create.custom-quota.description": "Specify a custom storage limit for this user",
+  "admin.users.modal.create.quota": "Storage quota",
 
   // END /admin/users
 
@@ -532,6 +541,8 @@ export default {
   "admin.config.share.global-download-rate-limit.description": "Maximum global download rate per second (in bytes). Set to 0 to disable limit.",
   "admin.config.share.global-upload-rate-limit": "Global upload rate limit",
   "admin.config.share.global-upload-rate-limit.description": "Maximum global upload rate per second (in bytes). Set to 0 to disable limit.",
+  "admin.config.share.default-user-quota": "Default user quota",
+  "admin.config.share.default-user-quota.description": "Default storage quota for new and existing users without a custom override.",
   "admin.config.share.webhook-discord": "Discord Webhook URL",
   "admin.config.share.webhook-discord.description": "Discord Webhook URL to receive beautiful styled Markdown notification cards on share activities.",
   "admin.config.share.webhook-slack": "Slack Webhook URL",
@@ -673,7 +684,7 @@ export default {
   "admin.config.ldap.admin-groups": "Admin group",
   "admin.config.ldap.admin-groups.description":
     "Group required for administrative access.",
-"admin.config.ldap.field-name-email": "User email attribute name",
+  "admin.config.ldap.field-name-email": "User email attribute name",
   "admin.config.ldap.field-name-email.description":
     "LDAP attribute name for the email of an user.",
   "admin.config.notify.success": "Configuration updated successfully.",

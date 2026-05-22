@@ -43,10 +43,13 @@ export class UserSevice {
       hash = await argon.hash(dto.password);
     }
 
+    const { storageQuota, ...rest } = dto;
+
     try {
       return await this.prisma.user.create({
         data: {
-          ...dto,
+          ...rest,
+          storageQuota: storageQuota !== undefined ? BigInt(storageQuota) : undefined,
           password: hash,
         },
       });
@@ -65,10 +68,15 @@ export class UserSevice {
   async update(id: string, user: UpdateUserDto) {
     try {
       const hash = user.password && (await argon.hash(user.password));
+      const { storageQuota, ...rest } = user;
 
       return await this.prisma.user.update({
         where: { id },
-        data: { ...user, password: hash },
+        data: {
+          ...rest,
+          storageQuota: storageQuota !== undefined ? BigInt(storageQuota) : undefined,
+          password: hash,
+        },
       });
     } catch (e) {
       if (e instanceof PrismaClientKnownRequestError) {

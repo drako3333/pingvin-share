@@ -17,6 +17,7 @@ import useTranslate, {
 import userService from "../../../services/user.service";
 import User from "../../../types/user.type";
 import toast from "../../../utils/toast.util";
+import FileSizeInput from "../../core/FileSizeInput";
 
 const showUpdateUserModal = (
   modals: ModalsContextProps,
@@ -46,6 +47,8 @@ const Body = ({
       username: user.username,
       email: user.email,
       isAdmin: user.isAdmin,
+      hasCustomQuota: user.storageQuota ? user.storageQuota > 0 : false,
+      storageQuota: user.storageQuota ? user.storageQuota : 10000000000,
     },
     validate: schemaResolver(
       yup.object().shape({
@@ -75,8 +78,13 @@ const Body = ({
       <form
         id="accountForm"
         onSubmit={accountForm.onSubmit(async (values) => {
+          const { hasCustomQuota, storageQuota, ...rest } = values;
+          const payload = {
+            ...rest,
+            storageQuota: hasCustomQuota ? storageQuota : 0,
+          };
           userService
-            .update(user.id, values)
+            .update(user.id, payload)
             .then(() => {
               getUsers();
               modals.closeAll();
@@ -99,6 +107,20 @@ const Body = ({
             label={t("admin.users.edit.update.admin-privileges")}
             {...accountForm.getInputProps("isAdmin", { type: "checkbox" })}
           />
+          <Switch
+            mt="xs"
+            labelPosition="left"
+            label={t("admin.users.modal.create.custom-quota")}
+            description={t("admin.users.modal.create.custom-quota.description")}
+            {...accountForm.getInputProps("hasCustomQuota", { type: "checkbox" })}
+          />
+          {accountForm.values.hasCustomQuota && (
+            <FileSizeInput
+              label={t("admin.users.modal.create.quota")}
+              value={accountForm.values.storageQuota}
+              onChange={(value) => accountForm.setFieldValue("storageQuota", value)}
+            />
+          )}
         </Stack>
       </form>
       <Accordion>

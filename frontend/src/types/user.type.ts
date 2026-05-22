@@ -6,6 +6,8 @@ type User = {
   isLdap: boolean;
   totpVerified: boolean;
   hasPassword: boolean;
+  storageQuota?: number;
+  storageUsed?: number;
 };
 
 export type CreateUser = {
@@ -13,6 +15,7 @@ export type CreateUser = {
   email: string;
   password?: string;
   isAdmin?: boolean;
+  storageQuota?: number;
 };
 
 export type UpdateUser = {
@@ -20,6 +23,7 @@ export type UpdateUser = {
   email?: string;
   password?: string;
   isAdmin?: boolean;
+  storageQuota?: number;
 };
 
 export type UpdateCurrentUser = {

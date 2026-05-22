@@ -33,15 +33,23 @@ export class UserDTO {
   @Expose()
   totpVerified: boolean;
 
-  from(partial: Partial<UserDTO>) {
+  @Expose()
+  storageQuota?: number;
+
+  @Expose()
+  storageUsed: number;
+
+  from(partial: any) {
     const result = plainToClass(UserDTO, partial, {
       excludeExtraneousValues: true,
     });
     result.isLdap = partial.ldapDN?.length > 0;
+    result.storageQuota = partial.storageQuota !== undefined ? Number(partial.storageQuota) : 0;
+    result.storageUsed = partial.storageUsed !== undefined ? Number(partial.storageUsed) : 0;
     return result;
   }
 
-  fromList(partial: Partial<UserDTO>[]) {
+  fromList(partial: any[]) {
     return partial.map((part) => this.from(part));
   }
 }

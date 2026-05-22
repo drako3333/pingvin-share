@@ -30,6 +30,9 @@ model User {
 
   oAuthUsers OAuthUser[]
   pushSubscriptions PushSubscription[]
+
+  storageQuota BigInt @default(0)
+  storageUsed  BigInt @default(0)
 }
 
 model RefreshToken {

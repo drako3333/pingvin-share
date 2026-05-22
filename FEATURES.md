@@ -58,7 +58,7 @@ Liste de fonctionnalités proposées pour transformer Ustrohosting Share en une 
 
 ## 🛡️ Administration
 
-### FEAT-006 · Quotas de stockage par utilisateur
+### FEAT-006 · Quotas de stockage par utilisateur - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐⭐
 **Description** : Permettre à l'administrateur de définir une limite de stockage par utilisateur.
 - Quota global par défaut configurable dans l'admin

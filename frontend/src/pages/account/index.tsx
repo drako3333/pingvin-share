@@ -1,4 +1,5 @@
 import {
+  Alert,
   Badge,
   Button,
   Center,
@@ -6,6 +7,7 @@ import {
   Group,
   Paper,
   PasswordInput,
+  Progress,
   Stack,
   Switch,
   Tabs,
@@ -16,7 +18,7 @@ import {
 import { useForm, schemaResolver } from "@mantine/form";
 import { useModals } from "@mantine/modals";
 import { useEffect, useState } from "react";
-import { TbAuth2Fa, TbBell } from "react-icons/tb";
+import { TbAuth2Fa, TbBell, TbDatabase, TbAlertTriangle } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import * as yup from "yup";
 import pushNotificationService from "../../services/pushNotification.service";
@@ -26,9 +28,11 @@ import ThemeSwitcher from "../../components/account/ThemeSwitcher";
 import showEnableTotpModal from "../../components/account/showEnableTotpModal";
 import useTranslate from "../../hooks/useTranslate.hook";
 import useUser from "../../hooks/user.hook";
+import useConfig from "../../hooks/config.hook";
 import authService from "../../services/auth.service";
 import userService from "../../services/user.service";
 import { getOAuthIcon, getOAuthUrl, unlinkOAuth } from "../../utils/oauth.util";
+import { byteToHumanSizeString } from "../../utils/fileSize.util";
 import toast from "../../utils/toast.util";
 
 // Helper to parse base64 VAPID keys
@@ -174,6 +178,13 @@ const Account = () => {
   const { user, refreshUser } = useUser();
   const modals = useModals();
   const t = useTranslate();
+  const config = useConfig();
+
+  const defaultQuota = parseInt(config.get("share.defaultUserQuota") || "0");
+  const effectiveQuota = user?.storageQuota && user.storageQuota > 0 ? user.storageQuota : defaultQuota;
+  const storageUsed = user?.storageUsed || 0;
+  const percentUsed = effectiveQuota > 0 ? Math.min(100, Math.round((storageUsed / effectiveQuota) * 100)) : 0;
+  const progressColor = percentUsed >= 95 ? "red" : percentUsed >= 80 ? "orange" : "teal";
 
   const accountForm = useForm({
     initialValues: {
@@ -270,6 +281,74 @@ const Account = () => {
         <Title order={3} mb="xs">
           <FormattedMessage id="account.title" />
         </Title>
+
+        {user && (
+          <Paper withBorder p="xl" mb="lg">
+            <Group justify="space-between" mb="xs">
+              <Group gap="xs">
+                <TbDatabase size={20} style={{ color: "var(--mantine-color-blue-6)" }} />
+                <Title order={5}>
+                  <FormattedMessage id="account.storage.title" defaultMessage="Espace de stockage" />
+                </Title>
+              </Group>
+              <Text size="sm" color="dimmed">
+                {percentUsed}% <FormattedMessage id="account.storage.used" defaultMessage="utilisé" />
+              </Text>
+            </Group>
+
+            {percentUsed >= 95 ? (
+              <Alert
+                color="red"
+                variant="light"
+                icon={<TbAlertTriangle size={20} />}
+                title={t("account.storage.alert.critical.title", { defaultMessage: "Espace de stockage presque saturé !" })}
+                mb="md"
+                styles={{
+                  root: {
+                    borderLeft: "4px solid var(--mantine-color-red-6)",
+                  },
+                }}
+              >
+                <FormattedMessage id="account.storage.alert.critical.description" defaultMessage="Vous avez utilisé plus de 95% de votre quota de stockage. Libérez de l'espace ou contactez un administrateur." />
+              </Alert>
+            ) : percentUsed >= 80 ? (
+              <Alert
+                color="orange"
+                variant="light"
+                icon={<TbAlertTriangle size={20} />}
+                title={t("account.storage.alert.warning.title", { defaultMessage: "Espace de stockage bientôt saturé" })}
+                mb="md"
+                styles={{
+                  root: {
+                    borderLeft: "4px solid var(--mantine-color-orange-6)",
+                  },
+                }}
+              >
+                <FormattedMessage id="account.storage.alert.warning.description" defaultMessage="Vous avez dépassé 80% de votre quota de stockage autorisé." />
+              </Alert>
+            ) : null}
+
+            <Progress
+              value={percentUsed}
+              color={progressColor}
+              size="md"
+              radius="xl"
+              striped
+              animated={percentUsed >= 80}
+              mb="xs"
+            />
+
+            <Group justify="space-between">
+              <Text size="xs" color="dimmed">
+                {byteToHumanSizeString(storageUsed)}
+              </Text>
+              <Text size="xs" color="dimmed">
+                {byteToHumanSizeString(effectiveQuota)}
+              </Text>
+            </Group>
+          </Paper>
+        )}
+
         <Paper withBorder p="xl">
           <Title order={5} mb="xs">
             <FormattedMessage id="account.card.info.title" />

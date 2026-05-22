@@ -145,6 +145,10 @@ export class LocalFileService {
           share: { connect: { id: shareId } },
         },
       });
+
+      if (share.creatorId) {
+        await this.prisma.updateUserStorageUsed(share.creatorId);
+      }
     }
 
     return file;
@@ -214,6 +218,13 @@ export class LocalFileService {
     }
 
     await this.prisma.file.delete({ where: { id: fileId } });
+
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+    });
+    if (share?.creatorId) {
+      await this.prisma.updateUserStorageUsed(share.creatorId);
+    }
   }
 
   async deleteAllFiles(shareId: string) {
