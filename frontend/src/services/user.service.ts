@@ -4,6 +4,7 @@ import {
   UpdateCurrentUser,
   UpdateUser,
 } from "../types/user.type";
+import { DashboardStats } from "../types/dashboard.type";
 import api from "./api.service";
 import authService from "./auth.service";
 
@@ -40,6 +41,10 @@ const getCurrentUser = async (): Promise<CurrentUser | null> => {
   }
 };
 
+const getDashboardStats = async (): Promise<DashboardStats> => {
+  return (await api.get("/users/me/dashboard")).data;
+};
+
 export default {
   list,
   create,
@@ -48,4 +53,5 @@ export default {
   getCurrentUser,
   updateCurrentUser,
   removeCurrentUser,
+  getDashboardStats,
 };

@@ -59,6 +59,9 @@ const ManageShareTable = ({
               <FormattedMessage id="account.shares.table.size" />
             </th>
             <th>
+              Stockage
+            </th>
+            <th>
               <FormattedMessage id="account.shares.table.expiresAt" />
             </th>
             <th></th>
@@ -123,6 +126,23 @@ const ManageShareTable = ({
                   <td>{share.views}</td>
                   <td>{byteToHumanSizeString(share.size)}</td>
                   <td>
+                    {share.storageProvider === "LOCAL" ? (
+                      <Badge color="blue" variant="light">SSD Local</Badge>
+                    ) : share.storageProvider === "S3" ? (
+                      share.s3BucketType === "minio" ? (
+                        <Badge color="orange" variant="light">{share.s3BucketName || "MinIO"}</Badge>
+                      ) : share.s3BucketType === "b2" ? (
+                        <Badge color="indigo" variant="light">{share.s3BucketName || "B2 Cloud"}</Badge>
+                      ) : (
+                        <Badge color="teal" variant="light">
+                          {share.s3BucketName || "S3 Cloud"}
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge color="blue" variant="light">SSD Local</Badge>
+                    )}
+                  </td>
+                  <td>
                     {moment(share.expiration).unix() === 0
                       ? "Never"
                       : moment(share.expiration).format("LLL")}
@@ -182,6 +202,9 @@ const skeletonRows = [...Array(10)].map((v, i) => (
     <Box component="td" visibleFrom="md">
       <Skeleton key={i} height={20} />
     </Box>
+    <td>
+      <Skeleton key={i} height={20} />
+    </td>
     <td>
       <Skeleton key={i} height={20} />
     </td>

@@ -9,6 +9,7 @@ import {
   Stack,
   Text,
   Title,
+  Divider,
 } from "@mantine/core";
 import { useMantineTheme, useMantineColorScheme } from "@mantine/core";
 import Link from "next/link";
@@ -53,6 +54,7 @@ interface AdminStats {
   diskTotal: number;
   diskFree: number;
   diskUsed: number;
+  disableLocalStorage?: boolean;
   storageStats?: {
     local: StorageDetail;
     buckets: BucketDetail[];
@@ -104,196 +106,121 @@ const AdminAnalytics = () => {
       </Group>
 
       <Stack gap="lg">
-        {/* Section 1: Stockage Fusionné Multi-Tier */}
         {stats.storageStats ? (
-          <Paper
-            withBorder
-            p="xl"
-            radius="lg"
-            style={{
-              background: isDark ? "rgba(26, 27, 30, 0.5)" : "rgba(255, 255, 255, 0.75)",
-              backdropFilter: "blur(12px)",
-              border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.06)",
-            }}
-          >
-            <Title order={4} mb="xs" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <TbDatabase size={22} color={theme.colors.blue[6]} />
-              Architecture de Stockage Fusionnée Multi-Tier
-            </Title>
-            <Text size="xs" c="dimmed" mb="lg">
-              Surveillance en temps réel du stockage en cascade (Local Hot SSD ➔ MinIO LAN Warm ➔ Cloud B2 Cold)
-            </Text>
+          (() => {
+            const localStats = stats.storageStats.local;
+            const bucketsList = stats.storageStats.buckets || [];
 
-            <Stack gap="xl">
-              {/* Hot Local SSD (Tier 1) */}
-              <div>
-                <Group justify="space-between" mb="xs">
-                  <div>
-                    <Text size="sm" fw={700}>
-                      {stats.storageStats.local.name}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      SSD NVMe local ultra-rapide pour partages éphémères et prioritaires
-                    </Text>
-                  </div>
-                  <Text size="xs" fw={700} color={stats.storageStats.local.free < 100 * 1024 * 1024 * 1024 ? "red" : "teal"}>
-                    {byteToHumanSizeString(stats.storageStats.local.free)} libre
-                  </Text>
+            let combinedTotal = localStats.total;
+            let combinedConsumed = localStats.consumed;
+            let combinedFree = localStats.free;
+
+            for (const b of bucketsList) {
+              if (b.total !== null) {
+                combinedTotal += b.total;
+              }
+              combinedConsumed += b.consumed;
+              if (b.free !== null) {
+                combinedFree += b.free;
+              }
+            }
+
+            const combinedUsed = combinedTotal - combinedFree;
+            const otherSystemUsed = Math.max(0, combinedUsed - combinedConsumed);
+
+            const consumedPercent = combinedTotal > 0 ? (combinedConsumed / combinedTotal) * 100 : 0;
+            const otherPercent = combinedTotal > 0 ? (otherSystemUsed / combinedTotal) * 100 : 0;
+            const freePercent = combinedTotal > 0 ? (combinedFree / combinedTotal) * 100 : 0;
+
+            return (
+              <Paper
+                withBorder
+                p="xl"
+                radius="lg"
+                style={{
+                  background: isDark ? "rgba(26, 27, 30, 0.5)" : "rgba(255, 255, 255, 0.75)",
+                  backdropFilter: "blur(12px)",
+                  border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.06)",
+                }}
+              >
+                <Group justify="space-between" align="center" mb="xs" wrap="nowrap">
+                  <Title order={4} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <TbDatabase size={22} color={theme.colors.blue[6]} />
+                    Architecture de Stockage Fusionnée
+                  </Title>
+                  <Button
+                    component={Link}
+                    href="/admin/analytics/advanced"
+                    size="xs"
+                    variant="light"
+                  >
+                    Voir les détails avancés (Multi-Tier) →
+                  </Button>
                 </Group>
-
-                <Progress.Root size="xl" radius="xl" mb="xs">
-                  <Progress.Section
-                    value={(stats.storageStats.local.consumed / stats.storageStats.local.total) * 100}
-                    color="blue"
-                    striped
-                    animated
-                  >
-                    <Progress.Label>Ustro Share ({Math.round((stats.storageStats.local.consumed / stats.storageStats.local.total) * 100)}%)</Progress.Label>
-                  </Progress.Section>
-                  <Progress.Section
-                    value={(Math.max(0, stats.storageStats.local.used - stats.storageStats.local.consumed) / stats.storageStats.local.total) * 100}
-                    color="orange"
-                    striped
-                  >
-                    <Progress.Label>Système / Autre ({Math.round((Math.max(0, stats.storageStats.local.used - stats.storageStats.local.consumed) / stats.storageStats.local.total) * 100)}%)</Progress.Label>
-                  </Progress.Section>
-                  <Progress.Section
-                    value={(stats.storageStats.local.free / stats.storageStats.local.total) * 100}
-                    color="teal"
-                  >
-                    <Progress.Label>Libre ({Math.round((stats.storageStats.local.free / stats.storageStats.local.total) * 100)}%)</Progress.Label>
-                  </Progress.Section>
-                </Progress.Root>
                 
-                <Grid mt={5}>
-                  <Grid.Col span={4}>
-                    <Text size="xs" c="dimmed">Taille Totale</Text>
-                    <Text size="sm" fw={600}>{byteToHumanSizeString(stats.storageStats.local.total)}</Text>
-                  </Grid.Col>
-                  <Grid.Col span={4}>
-                    <Text size="xs" c="dimmed">Consommé Ustro Share</Text>
-                    <Text size="sm" fw={600} color="blue">{byteToHumanSizeString(stats.storageStats.local.consumed)}</Text>
-                  </Grid.Col>
-                  <Grid.Col span={4}>
-                    <Text size="xs" c="dimmed">Seuil de Sécurité SSD</Text>
-                    <Text size="sm" fw={600} color="red">100 GB (Restant)</Text>
-                  </Grid.Col>
-                </Grid>
-              </div>
+                <Text size="xs" c="dimmed" mb="lg">
+                  {stats.disableLocalStorage
+                    ? "Capacité de stockage unifiée combinant vos serveurs MinIO (Warm) et vos Clouds B2 (Cold) (Stockage SSD Local désactivé)."
+                    : "Capacité de stockage unifiée combinant votre SSD Local (Hot), vos serveurs MinIO (Warm) et vos Clouds B2 (Cold)."}
+                </Text>
 
-              {/* MinIO LAN sharding & selective replication (Tier 2 - Warm) */}
-              {stats.storageStats.buckets.filter((b) => b.type === "minio").length > 0 && (
-                <div>
-                  <Text size="sm" fw={700} mb="xs">
-                    MinIO LAN Cluster (Tier 2 - Warm Storage - RAID-0/1)
-                  </Text>
-                  <Stack gap="md">
-                    {stats.storageStats.buckets.filter((b) => b.type === "minio").map((b) => (
-                      <div key={b.id} style={{ borderLeft: "3px solid #228be6", paddingLeft: 12 }}>
-                        <Group justify="space-between" mb="xs">
-                          <div>
-                            <Text size="sm" fw={600}>{b.name} (MinIO)</Text>
-                            <Text size="xs" c="dimmed">
-                              Serveur LAN de 24 TB physique pour sharding & miroir
-                            </Text>
-                          </div>
-                          {b.free !== null && (
-                            <Text size="xs" fw={700} color={b.free < 1024 * 1024 * 1024 * 1024 ? "red" : "teal"}>
-                              {byteToHumanSizeString(b.free)} libre
-                            </Text>
-                          )}
-                        </Group>
+                <Stack gap="xl">
+                  {/* Unified Progress Bar */}
+                  <div>
+                    <Group justify="space-between" mb="xs">
+                      <Text size="sm" fw={700}>
+                        Espace de Stockage Global
+                      </Text>
+                      <Text size="xs" fw={700} color={combinedFree < 100 * 1024 * 1024 * 1024 ? "red" : "teal"}>
+                        {byteToHumanSizeString(combinedFree)} libre
+                      </Text>
+                    </Group>
 
-                        {b.total ? (
-                          <Progress.Root size="lg" radius="xl" mb="xs">
-                            <Progress.Section
-                              value={(b.consumed / b.total) * 100}
-                              color="blue"
-                              striped
-                              animated
-                            >
-                              <Progress.Label>Ustro Share ({Math.round((b.consumed / b.total) * 100)}%)</Progress.Label>
-                            </Progress.Section>
-                            <Progress.Section
-                              value={(Math.max(0, (b.used ?? 0) - b.consumed) / b.total) * 100}
-                              color="violet"
-                              striped
-                            >
-                              <Progress.Label>Nextcloud / Privé ({Math.round((Math.max(0, (b.used ?? 0) - b.consumed) / b.total) * 100)}%)</Progress.Label>
-                            </Progress.Section>
-                            <Progress.Section
-                              value={((b.free ?? 0) / b.total) * 100}
-                              color="teal"
-                            >
-                              <Progress.Label>Libre ({Math.round(((b.free ?? 0) / b.total) * 100)}%)</Progress.Label>
-                            </Progress.Section>
-                          </Progress.Root>
-                        ) : (
-                          <Progress value={100} color="blue" size="sm" striped animated mb="xs" />
-                        )}
-
-                        <Grid>
-                          <Grid.Col span={4}>
-                            <Text size="xs" c="dimmed">Consommé Ustro Share</Text>
-                            <Text size="sm" fw={600} color="blue">{byteToHumanSizeString(b.consumed)}</Text>
-                          </Grid.Col>
-                          <Grid.Col span={4}>
-                            {b.total && (
-                              <>
-                                <Text size="xs" c="dimmed">Espace Nextcloud</Text>
-                                <Text size="sm" fw={600} color="violet">{byteToHumanSizeString(Math.max(0, (b.used ?? 0) - b.consumed))}</Text>
-                              </>
-                            )}
-                          </Grid.Col>
-                          <Grid.Col span={4}>
-                            <Text size="xs" c="dimmed">Migration Cascade B2</Text>
-                            <Text size="sm" fw={600} color="red">&lt; 1 TB restant</Text>
-                          </Grid.Col>
-                        </Grid>
-                      </div>
-                    ))}
-                  </Stack>
-                </div>
-              )}
-
-              {/* Cloud B2 (Tier 3 - Cold) */}
-              {stats.storageStats.buckets.filter((b) => b.type === "b2").length > 0 && (
-                <div>
-                  <Text size="sm" fw={700} mb="xs">
-                    Backblaze B2 Cloud (Tier 3 - Cold Cascade Storage)
-                  </Text>
-                  <Grid>
-                    {stats.storageStats.buckets.filter((b) => b.type === "b2").map((b) => (
-                      <Grid.Col key={b.id} span={12}>
-                        <Paper
-                          withBorder
-                          p="md"
-                          radius="md"
-                          style={{
-                            background: isDark ? "rgba(103, 114, 229, 0.05)" : "rgba(103, 114, 229, 0.02)",
-                            borderColor: theme.colors.indigo[3],
-                          }}
+                    <Progress.Root size="xl" radius="xl" mb="xs">
+                      <Progress.Section
+                        value={consumedPercent}
+                        color="blue"
+                        striped
+                        animated
+                      >
+                        <Progress.Label>Partages ({Math.round(consumedPercent)}%)</Progress.Label>
+                      </Progress.Section>
+                      {otherPercent > 1 && (
+                        <Progress.Section
+                          value={otherPercent}
+                          color="orange"
+                          striped
                         >
-                          <Group justify="space-between">
-                            <div>
-                              <Text size="sm" fw={600} color="indigo">{b.name} (Backblaze B2)</Text>
-                              <Text size="xs" c="dimmed">
-                                Stockage Cloud externe illimité et sécurisé pour délestage dynamique
-                              </Text>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <Text size="xs" c="dimmed">Total Consommé</Text>
-                              <Text size="lg" fw={800} color="indigo">{byteToHumanSizeString(b.consumed)}</Text>
-                            </div>
-                          </Group>
-                        </Paper>
+                          <Progress.Label>Système / Autre ({Math.round(otherPercent)}%)</Progress.Label>
+                        </Progress.Section>
+                      )}
+                      <Progress.Section
+                        value={freePercent}
+                        color="teal"
+                      >
+                        <Progress.Label>Libre ({Math.round(freePercent)}%)</Progress.Label>
+                      </Progress.Section>
+                    </Progress.Root>
+
+                    <Grid mt={5}>
+                      <Grid.Col span={4}>
+                        <Text size="xs" c="dimmed">Taille Totale Combinée</Text>
+                        <Text size="sm" fw={600}>{byteToHumanSizeString(combinedTotal)}</Text>
                       </Grid.Col>
-                    ))}
-                  </Grid>
-                </div>
-              )}
-            </Stack>
-          </Paper>
+                      <Grid.Col span={4}>
+                        <Text size="xs" c="dimmed">Espace consommé</Text>
+                        <Text size="sm" fw={600} color="blue">{byteToHumanSizeString(combinedConsumed)}</Text>
+                      </Grid.Col>
+                      <Grid.Col span={4}>
+                        <Text size="xs" c="dimmed">Espace Libre Restant</Text>
+                        <Text size="sm" fw={600} color="teal">{byteToHumanSizeString(combinedFree)}</Text>
+                      </Grid.Col>
+                    </Grid>
+                  </div>
+                </Stack>
+              </Paper>
+            );
+          })()
         ) : stats.diskTotal > 0 ? (
           <Paper
             withBorder

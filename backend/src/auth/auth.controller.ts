@@ -28,6 +28,7 @@ import { UpdatePasswordDTO } from "./dto/updatePassword.dto";
 import { VerifyTotpDTO } from "./dto/verifyTotp.dto";
 import { JwtGuard } from "./guard/jwt.guard";
 
+import { UserDTO } from "src/user/dto/user.dto";
 import { AuditLogService } from "src/audit/audit.service";
 
 @Controller("auth")
@@ -62,7 +63,11 @@ export class AuthController {
       result.accessToken,
     );
 
-    return result;
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      user: new UserDTO().from(result.user),
+    };
   }
 
   @Post("signIn")

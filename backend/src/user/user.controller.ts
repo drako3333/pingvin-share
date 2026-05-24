@@ -39,6 +39,12 @@ export class UserController {
     return userDTO;
   }
 
+  @Get("me/dashboard")
+  @UseGuards(JwtGuard)
+  async getDashboardStats(@GetUser() user: User) {
+    return this.userService.getDashboardStats(user.id);
+  }
+
   @Patch("me")
   @UseGuards(JwtGuard)
   async updateCurrentUser(

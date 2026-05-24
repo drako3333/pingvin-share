@@ -3,21 +3,18 @@ import { useState } from "react";
 
 const multipliers = {
   B: 1,
-  KB: 1000,
-  KiB: 1024,
-  MB: 1000 ** 2,
-  MiB: 1024 ** 2,
-  GB: 1000 ** 3,
-  GiB: 1024 ** 3,
-  TB: 1000 ** 4,
-  TiB: 1024 ** 4,
+  KB: 1024,
+  MB: 1024 ** 2,
+  GB: 1024 ** 3,
+  TB: 1024 ** 4,
 };
 
 const units = (
-  ["B", "KB", "KiB", "MB", "MiB", "GB", "GiB", "TB", "TiB"] as const
+  ["B", "KB", "MB", "GB", "TB"] as const
 ).map((unit) => ({ label: unit, value: unit }));
 
 function getLargestApplicableUnit(value: number) {
+  if (value === 0) return units.find((u) => u.value === "MB") || units[0];
   return (
     units.findLast((unit) => value % multipliers[unit.value] === 0) || units[0]
   );
@@ -27,10 +24,12 @@ const FileSizeInput = ({
   label,
   value,
   onChange,
+  min = 1,
   ...restProps
 }: {
   label?: string;
   value: number;
+  min?: number;
   // eslint-disable-next-line no-unused-vars
   onChange: (number: number) => void;
   [key: string]: any;
@@ -64,7 +63,7 @@ const FileSizeInput = ({
     <NumberInput
       label={label}
       value={inputValue}
-      min={1}
+      min={min}
       max={999999}
       decimalScale={0}
       allowDecimal={false}

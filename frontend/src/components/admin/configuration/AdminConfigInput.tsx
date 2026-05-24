@@ -87,6 +87,7 @@ const AdminConfigInput = ({
         <FileSizeInput
           {...form.getInputProps("numberValue")}
           disabled={!configVariable.allowEdit}
+          min={0}
           value={parseInt(configVariable.value ?? configVariable.defaultValue)}
           onChange={(bytes) => onValueChange(configVariable, bytes)}
           w={201}

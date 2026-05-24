@@ -7,6 +7,7 @@ import { ReverseShareModule } from "src/reverseShare/reverseShare.module";
 import { ShareController } from "./share.controller";
 import { ShareService } from "./share.service";
 import { ShareAnalyticsService } from "./share-analytics.service";
+import { ActivityModule } from "src/activity/activity.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ShareAnalyticsService } from "./share-analytics.service";
     forwardRef(() => ClamScanModule),
     ReverseShareModule,
     forwardRef(() => FileModule),
+    ActivityModule,
   ],
   controllers: [ShareController],
   providers: [ShareService, ShareAnalyticsService],

@@ -29,6 +29,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { NotificationService } from "src/notification/notification.service";
 import { JwtGuard } from "src/auth/guard/jwt.guard";
 import { AdministratorGuard } from "src/auth/guard/isAdmin.guard";
+import { ActivityService } from "src/activity/activity.service";
 
 export class ThrottleStream extends Transform {
   private bps: number;
@@ -72,6 +73,7 @@ export class FileController {
     private shareAnalyticsService: ShareAnalyticsService,
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private activityService: ActivityService,
   ) {}
 
   @Post()
@@ -88,8 +90,30 @@ export class FileController {
     },
     @Body() body: string,
     @Param("shareId") shareId: string,
+    @Req() request: Request,
   ) {
     const { id, name, chunkIndex, totalChunks } = query;
+
+    const chunkIdxVal = parseInt(chunkIndex);
+    const totalChunksVal = parseInt(totalChunks);
+    const progress = Math.round(((chunkIdxVal + 1) / totalChunksVal) * 100);
+
+    // Throttle progress events (emit at 0%, 100%, or multiples of 10% progress)
+    if (chunkIdxVal === 0 || chunkIdxVal === totalChunksVal - 1 || progress % 10 === 0) {
+      const creatorUser = request["user"] as User | undefined;
+      const username = creatorUser?.username || "Anonyme";
+      this.activityService.publish({
+        type: "upload-progress",
+        data: {
+          shareId,
+          fileId: id,
+          fileName: name,
+          progress,
+          size: query.size ? parseInt(query.size) : 0,
+          username,
+        },
+      });
+    }
 
     const share = await this.prisma.share.findUnique({
       where: { id: shareId },
@@ -168,6 +192,17 @@ export class FileController {
       username,
     );
 
+    this.activityService.publish({
+      type: "download",
+      data: {
+        shareId,
+        fileId: "ZIP",
+        fileName: `${shareId}.zip`,
+        ip: request.ip,
+        username,
+      },
+    });
+
     // Asynchronously log analytics
     const ua = request.headers["user-agent"] || "";
     void this.shareAnalyticsService.record(shareId, request.ip, ua);
@@ -234,6 +269,20 @@ export class FileController {
       const username = user?.username || "Anonyme";
       const userId = user?.id || undefined;
 
+      // Fetch the file name asynchronously to publish a precise name in the Live Feed
+      this.prisma.file.findUnique({ where: { id: fileId } }).then((f) => {
+        this.activityService.publish({
+          type: "download",
+          data: {
+            shareId,
+            fileId,
+            fileName: f?.name || "S3 Direct Presigned URL",
+            ip: request.ip,
+            username,
+          },
+        });
+      }).catch(() => {});
+
       await this.auditLogService.create(
         "TELECHARGEMENT",
         request.ip,
@@ -272,6 +321,17 @@ export class FileController {
       userId,
       username,
     );
+
+    this.activityService.publish({
+      type: "download",
+      data: {
+        shareId,
+        fileId,
+        fileName: file.metaData.name,
+        ip: request.ip,
+        username,
+      },
+    });
 
     // Asynchronously log analytics
     const ua = request.headers["user-agent"] || "";

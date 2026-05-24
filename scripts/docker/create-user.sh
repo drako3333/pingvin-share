@@ -28,5 +28,9 @@ find /opt/app/backend/data \( ! -group "${PGID}" -o ! -user "${PUID}" \) -exec c
 # Change ownership of the frontend public directory
 find /opt/app/frontend/public \( ! -group "${PGID}" -o ! -user "${PUID}" \) -exec chown "${PUID}:${PGID}" {} +
 
+# Change ownership of the prisma client node_modules folder to allow post-migration generation
+mkdir -p /opt/app/backend/node_modules/.prisma
+chown -R "${PUID}:${PGID}" /opt/app/backend/node_modules/.prisma
+
 # Switch to the non-root user
 exec su-exec "$PUID:$PGID" "$@"

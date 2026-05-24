@@ -22,6 +22,7 @@ import { UserSevice } from "../user/user.service";
 import { AuthRegisterDTO } from "./dto/authRegister.dto";
 import { AuthSignInDTO } from "./dto/authSignIn.dto";
 import { LdapService } from "./ldap.service";
+import { ActivityService } from "src/activity/activity.service";
 
 @Injectable()
 export class AuthService {
@@ -33,6 +34,7 @@ export class AuthService {
     private ldapService: LdapService,
     private userService: UserSevice,
     @Inject(forwardRef(() => OAuthService)) private oAuthService: OAuthService,
+    private activityService: ActivityService,
   ) {}
   private readonly logger = new Logger(AuthService.name);
 
@@ -85,6 +87,10 @@ export class AuthService {
         this.logger.log(
           `Successful password login for user ${user.email} from IP ${ip}`,
         );
+        this.activityService.publish({
+          type: "auth",
+          data: { action: "login", username: user.username, ip, success: true },
+        });
         return this.generateToken(user);
       }
     }
@@ -107,10 +113,18 @@ export class AuthService {
         this.logger.log(
           `Successful LDAP login for user ${ldapUsername} (${user.id}) from IP ${ip}`,
         );
+        this.activityService.publish({
+          type: "auth",
+          data: { action: "login", username: user.username, ip, success: true },
+        });
         return this.generateToken(user);
       }
     }
 
+    this.activityService.publish({
+      type: "security-alert",
+      data: { alertType: "failed-login", ip, target: dto.email || dto.username },
+    });
     this.logger.log(
       `Failed login attempt for user ${dto.email || dto.username} from IP ${ip}`,
     );
@@ -230,10 +244,22 @@ export class AuthService {
   }
 
   async signOut(accessToken: string) {
-    const { refreshTokenId } =
-      (this.jwtService.decode(accessToken) as {
-        refreshTokenId: string;
-      }) || {};
+    const decoded = (this.jwtService.decode(accessToken) as {
+      refreshTokenId?: string;
+      email?: string;
+    }) || {};
+    const { refreshTokenId } = decoded;
+
+    if (decoded.email) {
+      this.prisma.user.findFirst({ where: { email: decoded.email } }).then((user) => {
+        if (user) {
+          this.activityService.publish({
+            type: "auth",
+            data: { action: "logout", username: user.username, ip: "N/A", success: true },
+          });
+        }
+      }).catch(() => {});
+    }
 
     if (refreshTokenId) {
       const oauthIDToken = await this.prisma.refreshToken

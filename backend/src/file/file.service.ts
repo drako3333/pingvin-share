@@ -37,7 +37,16 @@ export class FileService {
     },
     shareId: string,
   ) {
-    const storageService = this.getStorageService();
+    // Ensure database share is marked as LOCAL since it is uploaded locally chunk-by-chunk
+    await this.prisma.share.update({
+      where: { id: shareId },
+      data: {
+        storageProvider: "LOCAL",
+        s3BucketId: null,
+      },
+    });
+
+    const storageService = this.localFileService;
     return storageService.create(data, chunk, file, shareId);
   }
 

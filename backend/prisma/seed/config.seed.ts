@@ -71,34 +71,14 @@ export const configVariables = {
       defaultValue: "9",
     },
     globalDownloadRateLimit: {
-      type: "number",
+      type: "filesize",
       defaultValue: "0",
       secret: false,
     },
     globalUploadRateLimit: {
-      type: "number",
+      type: "filesize",
       defaultValue: "0",
       secret: false,
-    },
-    webhookDiscord: {
-      type: "string",
-      defaultValue: "",
-      secret: true,
-    },
-    webhookSlack: {
-      type: "string",
-      defaultValue: "",
-      secret: true,
-    },
-    webhookTelegramToken: {
-      type: "string",
-      defaultValue: "",
-      secret: true,
-    },
-    webhookTelegramChatId: {
-      type: "string",
-      defaultValue: "",
-      secret: true,
     },
     chunkSize: {
       type: "filesize",
@@ -130,7 +110,27 @@ export const configVariables = {
       defaultValue: "1000",
     },
   },
-  email: {
+  notifications: {
+    webhookDiscord: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
+    webhookSlack: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
+    webhookTelegramToken: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
+    webhookTelegramChatId: {
+      type: "string",
+      defaultValue: "",
+      secret: true,
+    },
     enableShareEmailRecipients: {
       type: "boolean",
       defaultValue: "false",
@@ -427,6 +427,11 @@ export const configVariables = {
       type: "boolean",
       defaultValue: "false",
     },
+    ssdSecurityThreshold: {
+      type: "filesize",
+      defaultValue: "107374182400",
+      secret: false,
+    },
   },
   legal: {
     enabled: {
@@ -505,6 +510,44 @@ const prisma = new PrismaClient({
 });
 
 async function seedConfigVariables() {
+  // Migrate old categories to 'notifications' to preserve user values
+  const oldNotificationVariables = [
+    { name: "webhookDiscord", oldCategory: "share" },
+    { name: "webhookSlack", oldCategory: "share" },
+    { name: "webhookTelegramToken", oldCategory: "share" },
+    { name: "webhookTelegramChatId", oldCategory: "share" },
+    { name: "enableShareEmailRecipients", oldCategory: "email" },
+    { name: "shareRecipientsSubject", oldCategory: "email" },
+    { name: "shareRecipientsMessage", oldCategory: "email" },
+    { name: "reverseShareSubject", oldCategory: "email" },
+    { name: "reverseShareMessage", oldCategory: "email" },
+    { name: "resetPasswordSubject", oldCategory: "email" },
+    { name: "resetPasswordMessage", oldCategory: "email" },
+    { name: "inviteSubject", oldCategory: "email" },
+    { name: "inviteMessage", oldCategory: "email" }
+  ];
+
+  for (const variable of oldNotificationVariables) {
+    const existing = await prisma.config.findUnique({
+      where: { name_category: { name: variable.name, category: variable.oldCategory } }
+    });
+    if (existing) {
+      const inNewCategory = await prisma.config.findUnique({
+        where: { name_category: { name: variable.name, category: "notifications" } }
+      });
+      if (!inNewCategory) {
+        await prisma.config.update({
+          where: { name_category: { name: variable.name, category: variable.oldCategory } },
+          data: { category: "notifications" }
+        });
+      } else {
+        await prisma.config.delete({
+          where: { name_category: { name: variable.name, category: variable.oldCategory } }
+        });
+      }
+    }
+  }
+
   for (const [category, configVariablesOfCategory] of Object.entries(
     configVariables,
   )) {

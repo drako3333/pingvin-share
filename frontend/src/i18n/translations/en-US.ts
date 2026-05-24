@@ -314,6 +314,8 @@ export default {
   "upload.notify.generic-error":
     "An error occurred while finishing your share.",
   "upload.notify.count-failed": "{count} files failed to upload. Trying again.",
+  "upload.notify.cancelled": "Upload cancelled",
+  "upload.cancel-button": "Cancel upload",
   "upload.reverse-share.error.invalid.title": "Invalid reverse share link",
   "upload.reverse-share.error.invalid.description":
     "This reverse share has expired or is invalid.",
@@ -324,10 +326,14 @@ export default {
     "Drag'n'drop files here to start your share. We only accept files up to {maxSize} in total.",
   "upload.dropzone.notify.file-too-big":
     "Your files exceed the maximum share size of {maxSize}.",
+  "upload.dropzone.select-files": "Select files",
+  "upload.dropzone.select-folder": "Select folder",
 
   // FileList.tsx
   "upload.filelist.name": "Name",
   "upload.filelist.size": "Size",
+  "upload.filelist.queued": "Queued...",
+  "upload.filelist.failed": "Failed",
 
   // showCreateUploadModal.tsx
   "upload.modal.title": "Create Share",
@@ -448,7 +454,7 @@ export default {
   "admin.config.category.general": "General",
   "admin.config.category.share": "Share",
   "admin.config.category.cache": "Cache",
-  "admin.config.category.email": "Email",
+  "admin.config.category.notifications": "Notifications & Webhooks",
   "admin.config.category.smtp": "SMTP",
   "admin.config.category.oauth": "Social Login",
 
@@ -484,33 +490,33 @@ export default {
   "admin.config.cache.redis-url.description":
     "Url to connect to the Redis instance used for caching.",
 
-  "admin.config.email.enable-share-email-recipients":
+  "admin.config.notifications.enable-share-email-recipients":
     "Enable email recipient sharing",
-  "admin.config.email.enable-share-email-recipients.description":
+  "admin.config.notifications.enable-share-email-recipients.description":
     "Whether to allow email sharing with recipients. Only enable this if SMTP is activated.",
-  "admin.config.email.share-recipients-subject": "Share recipients subject",
-  "admin.config.email.share-recipients-subject.description":
+  "admin.config.notifications.share-recipients-subject": "Share recipients subject",
+  "admin.config.notifications.share-recipients-subject.description":
     "Subject of the email which gets sent to the share recipients.",
-  "admin.config.email.share-recipients-message": "Share recipients message",
-  "admin.config.email.share-recipients-message.description":
+  "admin.config.notifications.share-recipients-message": "Share recipients message",
+  "admin.config.notifications.share-recipients-message.description":
     "Message which gets sent to the share recipients. Available variables:\n {creator} - The username of the creator of the share\n {creatorEmail} - The email of the creator of the share\n {shareUrl} - The URL of the share\n {desc} - The description of the share\n {expires} - The expiration date of the share\n These variables will be replaced with the actual value.",
-  "admin.config.email.reverse-share-subject": "Reverse share subject",
-  "admin.config.email.reverse-share-subject.description":
+  "admin.config.notifications.reverse-share-subject": "Reverse share subject",
+  "admin.config.notifications.reverse-share-subject.description":
     "Subject of the sent email when someone created a share with your reverse share link.",
-  "admin.config.email.reverse-share-message": "Reverse share message",
-  "admin.config.email.reverse-share-message.description":
+  "admin.config.notifications.reverse-share-message": "Reverse share message",
+  "admin.config.notifications.reverse-share-message.description":
     "Message which gets sent when someone created a share with your reverse share link. {shareUrl} will be replaced with the creator's name and the share URL.",
-  "admin.config.email.reset-password-subject": "Reset password subject",
-  "admin.config.email.reset-password-subject.description":
+  "admin.config.notifications.reset-password-subject": "Reset password subject",
+  "admin.config.notifications.reset-password-subject.description":
     "Subject of the sent email when a user requests a password reset.",
-  "admin.config.email.reset-password-message": "Reset password message",
-  "admin.config.email.reset-password-message.description":
+  "admin.config.notifications.reset-password-message": "Reset password message",
+  "admin.config.notifications.reset-password-message.description":
     "Message which gets sent when a user requests a password reset. {url} will be replaced with the reset password URL.",
-  "admin.config.email.invite-subject": "Invite subject",
-  "admin.config.email.invite-subject.description":
+  "admin.config.notifications.invite-subject": "Invite subject",
+  "admin.config.notifications.invite-subject.description":
     "Subject of the sent email when an admin invites a user.",
-  "admin.config.email.invite-message": "Invite message",
-  "admin.config.email.invite-message.description":
+  "admin.config.notifications.invite-message": "Invite message",
+  "admin.config.notifications.invite-message.description":
     "Message which gets sent when an admin invites a user. {url} will be replaced with the invite URL, {email} with the email and {password} with the users password.",
 
   "admin.config.share.allow-registration": "Allow registration",
@@ -538,19 +544,19 @@ export default {
   "admin.config.share.auto-open-share-modal.description":
     "The share creation modal automatically appears when a user selects files, eliminating the need to manually click the button.",
   "admin.config.share.global-download-rate-limit": "Global download rate limit",
-  "admin.config.share.global-download-rate-limit.description": "Maximum global download rate per second (in bytes). Set to 0 to disable limit.",
+  "admin.config.share.global-download-rate-limit.description": "Maximum global download rate per second. Set to 0 to disable limit. (Examples: 1.25 MB/s ≈ 10 Mbps, 12.5 MB/s ≈ 100 Mbps, 125 MB/s ≈ 1 Gbps)",
   "admin.config.share.global-upload-rate-limit": "Global upload rate limit",
-  "admin.config.share.global-upload-rate-limit.description": "Maximum global upload rate per second (in bytes). Set to 0 to disable limit.",
+  "admin.config.share.global-upload-rate-limit.description": "Maximum global upload rate per second. Set to 0 to disable limit. (Examples: 1.25 MB/s ≈ 10 Mbps, 12.5 MB/s ≈ 100 Mbps, 125 MB/s ≈ 1 Gbps)",
   "admin.config.share.default-user-quota": "Default user quota",
   "admin.config.share.default-user-quota.description": "Default storage quota for new and existing users without a custom override.",
-  "admin.config.share.webhook-discord": "Discord Webhook URL",
-  "admin.config.share.webhook-discord.description": "Discord Webhook URL to receive beautiful styled Markdown notification cards on share activities.",
-  "admin.config.share.webhook-slack": "Slack Webhook URL",
-  "admin.config.share.webhook-slack.description": "Slack Webhook URL to receive styled notifications on share activities.",
-  "admin.config.share.webhook-telegram-token": "Telegram Bot Token",
-  "admin.config.share.webhook-telegram-token.description": "The API Token of your Telegram Bot created via @BotFather.",
-  "admin.config.share.webhook-telegram-chat-id": "Telegram Chat ID",
-  "admin.config.share.webhook-telegram-chat-id.description": "The unique ID of the Telegram channel or group conversation where notifications will be sent.",
+  "admin.config.notifications.webhook-discord": "Discord Webhook URL",
+  "admin.config.notifications.webhook-discord.description": "Discord Webhook URL to receive beautiful styled Markdown notification cards on share activities.",
+  "admin.config.notifications.webhook-slack": "Slack Webhook URL",
+  "admin.config.notifications.webhook-slack.description": "Slack Webhook URL to receive styled notifications on share activities.",
+  "admin.config.notifications.webhook-telegram-token": "Telegram Bot Token",
+  "admin.config.notifications.webhook-telegram-token.description": "The API Token of your Telegram Bot created via @BotFather.",
+  "admin.config.notifications.webhook-telegram-chat-id": "Telegram Chat ID",
+  "admin.config.notifications.webhook-telegram-chat-id.description": "The unique ID of the Telegram channel or group conversation where notifications will be sent.",
 
   "admin.config.smtp.enabled": "Enable",
   "admin.config.smtp.enabled.description":
@@ -720,6 +726,8 @@ export default {
   "admin.config.s3.tiering-days.description": "Number of days before local completed shares are moved to S3 cold storage.",
   "admin.config.s3.disable-local-storage": "Disable local storage",
   "admin.config.s3.disable-local-storage.description": "Once enabled, all shares and files are stored exclusively on S3/MinIO. Enabling this option automatically migrates all local files to S3/MinIO in the background.",
+  "admin.config.s3.ssd-security-threshold": "SSD Security Threshold",
+  "admin.config.s3.ssd-security-threshold.description": "The minimum remaining disk space threshold on the local SSD (e.g. 100 GB). S3 auto-tiering starts migrating older local files to the cloud when SSD free space falls below this limit.",
 
   "admin.config.category.legal": "Legal",
   "admin.config.legal.enabled": "Enable legal pages",

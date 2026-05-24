@@ -29,6 +29,21 @@ export class ShareDTO {
   @Expose()
   size: number;
 
+  @Expose()
+  storageProvider?: string;
+
+  @Expose()
+  s3BucketId?: string | null;
+
+  @Expose()
+  s3BucketName?: string | null;
+
+  @Expose()
+  s3BucketType?: string | null;
+
+  @Expose()
+  folderId?: string | null;
+
   from(partial: Partial<ShareDTO>) {
     return plainToClass(ShareDTO, partial, { excludeExtraneousValues: true });
   }

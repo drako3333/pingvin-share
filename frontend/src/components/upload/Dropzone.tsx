@@ -2,7 +2,7 @@
 import { Button, Center, Group, Text } from "@mantine/core";
 import { Dropzone as MantineDropzone } from "@mantine/dropzone";
 import { useRef } from "react";
-import { TbCloudUpload, TbUpload } from "react-icons/tb";
+import { TbCloudUpload, TbUpload, TbFolder } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import useTranslate from "../../hooks/useTranslate.hook";
 import { FileUpload } from "../../types/File.type";
@@ -112,16 +112,64 @@ const Dropzone = ({
 }) => {
   const t = useTranslate();
   const openRef = useRef<() => void>(null);
+  const directoryInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDirectorySelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files) return;
+    const filesArray: File[] = [];
+    for (let i = 0; i < event.target.files.length; i++) {
+      const file = event.target.files[i];
+      const relativePath = file.webkitRelativePath || file.name;
+      const renamedFile = new File([file], relativePath, {
+        type: file.type,
+        lastModified: file.lastModified,
+      });
+      filesArray.push(renamedFile);
+    }
+
+    if (filesArray.length === 0) return;
+
+    const fileSizeSum = filesArray.reduce((n, { size }) => n + size, 0);
+
+    if (fileSizeSum > maxShareSize) {
+      toast.error(
+        t("upload.dropzone.notify.file-too-big", {
+          maxSize: byteToHumanSizeString(maxShareSize),
+        }),
+      );
+    } else {
+      const mappedFiles = filesArray.map((newFile) => {
+        (newFile as any).uploadingProgress = 0;
+        return newFile as unknown as FileUpload;
+      });
+      onFilesChanged(mappedFiles);
+    }
+
+    event.target.value = "";
+  };
 
   return (
     <div className={classes.wrapper}>
+      <input
+        type="file"
+        ref={(el) => {
+          (directoryInputRef as any).current = el;
+          if (el) {
+            el.setAttribute("webkitdirectory", "");
+            el.setAttribute("directory", "");
+          }
+        }}
+        style={{ display: "none" }}
+        multiple
+        onChange={handleDirectorySelect}
+      />
       <MantineDropzone
         onReject={(e) => {
           toast.error(e[0].errors[0].message);
         }}
         disabled={isUploading}
         openRef={openRef as any}
-        useFsAccessApi={true}
+        useFsAccessApi={false}
         getFilesFromEvent={getFilesFromEvent as any}
         onDrop={(files) => {
           const fileSizeSum = files.reduce((n, { size }) => n + size, 0);
@@ -158,17 +206,31 @@ const Dropzone = ({
           </Text>
         </div>
       </MantineDropzone>
-      <Center>
-        <Button
-          className={classes.control}
-          variant="light"
-          size="sm"
-          radius="xl"
-          disabled={isUploading}
-          onClick={() => openRef.current && openRef.current()}
-        >
-          {<TbUpload />}
-        </Button>
+      <Center className={classes.controlGroup}>
+        <Group gap="md">
+          <Button
+            className={classes.controlButton}
+            variant="light"
+            size="sm"
+            radius="xl"
+            disabled={isUploading}
+            leftSection={<TbUpload size={18} />}
+            onClick={() => openRef.current && openRef.current()}
+          >
+            <FormattedMessage id="upload.dropzone.select-files" />
+          </Button>
+          <Button
+            className={classes.controlButton}
+            variant="light"
+            size="sm"
+            radius="xl"
+            disabled={isUploading}
+            leftSection={<TbFolder size={18} />}
+            onClick={() => directoryInputRef.current && directoryInputRef.current.click()}
+          >
+            <FormattedMessage id="upload.dropzone.select-folder" />
+          </Button>
+        </Group>
       </Center>
     </div>
   );

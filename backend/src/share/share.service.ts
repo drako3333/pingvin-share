@@ -22,6 +22,7 @@ import { parseRelativeDateToAbsolute } from "src/utils/date.util";
 import { SHARE_DIRECTORY } from "../constants";
 import { CreateShareDTO } from "./dto/createShare.dto";
 import { NotificationService } from "src/notification/notification.service";
+import { ActivityService } from "src/activity/activity.service";
 
 @Injectable()
 export class ShareService {
@@ -36,6 +37,7 @@ export class ShareService {
     private reverseShareService: ReverseShareService,
     private clamScanService: ClamScanService,
     private notificationService: NotificationService,
+    private activityService: ActivityService,
   ) {}
 
   async create(share: CreateShareDTO, user?: User, reverseShareToken?: string, clientIp?: string) {
@@ -80,13 +82,13 @@ export class ShareService {
       recursive: true,
     });
 
-    const isS3Enabled = this.configService.get("s3.enabled");
-    const disableLocalStorage = this.configService.get("s3.disableLocalStorage");
-    const useS3 = isS3Enabled || disableLocalStorage;
-    const isMultiBucketsEnabled = this.configService.get("s3.multiBucketsEnabled");
+    const isS3Enabled = this.configService.get("s3.enabled") === "true" || this.configService.get("s3.enabled") === true;
+    const disableLocalStorage = this.configService.get("s3.disableLocalStorage") === "true" || this.configService.get("s3.disableLocalStorage") === true;
+    const isMultiBucketsEnabled = this.configService.get("s3.multiBucketsEnabled") === "true" || this.configService.get("s3.multiBucketsEnabled") === true;
+    const useS3 = isS3Enabled || isMultiBucketsEnabled || disableLocalStorage;
     let s3BucketId: string | null = null;
 
-    if (isS3Enabled && isMultiBucketsEnabled && clientIp) {
+    if (isMultiBucketsEnabled && clientIp) {
       // Normalize IPv6 mapped IPv4 or local loopback
       const normalizedIp = clientIp.replace(/^::ffff:/, "");
       if (normalizedIp !== "127.0.0.1" && normalizedIp !== "::1") {
@@ -133,6 +135,19 @@ export class ShareService {
         } catch (err: any) {
           this.logger.warn(`Could not resolve IP location for ${normalizedIp}: ${err.message}`);
         }
+      }
+    }
+
+    if (isMultiBucketsEnabled && !s3BucketId) {
+      const bucketsConfigStr = this.configService.get("s3.multiBucketsConfig");
+      try {
+        const buckets = JSON.parse(bucketsConfigStr || "[]");
+        if (buckets.length > 0) {
+          s3BucketId = buckets[0].id;
+          this.logger.log(`Routed share ${share.id} to S3 fallback bucket ${s3BucketId}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not parse s3.multiBucketsConfig for fallback: ${err.message}`);
       }
     }
 
@@ -277,6 +292,54 @@ export class ShareService {
     });
   }
 
+  private enrichShareWithS3Info(share: any): any {
+    if (share.storageProvider !== "S3") {
+      return {
+        ...share,
+        s3BucketType: null,
+        s3BucketName: null,
+      };
+    }
+
+    const configStr = this.configService.get("s3.multiBucketsConfig");
+    let buckets: any[] = [];
+    try {
+      buckets = JSON.parse(configStr || "[]");
+    } catch (e) {
+      // Ignore
+    }
+
+    let s3BucketType: string | null = null;
+    let s3BucketName: string | null = null;
+
+    if (share.s3BucketId) {
+      const bucket = buckets.find((b: any) => b.id === share.s3BucketId);
+      if (bucket) {
+        s3BucketType = bucket.type || null;
+        s3BucketName = bucket.name || bucket.bucketName || null;
+      }
+    }
+
+    // Fallback if s3BucketId was not found or not set
+    if (!s3BucketType) {
+      // Check default S3 configuration or endpoint
+      const defaultEndpoint = this.configService.get("s3.endpoint") || "";
+      if (defaultEndpoint.toLowerCase().includes("minio")) {
+        s3BucketType = "minio";
+        s3BucketName = this.configService.get("s3.bucketName") || "MinIO";
+      } else {
+        s3BucketType = "s3";
+        s3BucketName = this.configService.get("s3.bucketName") || "S3 Cloud";
+      }
+    }
+
+    return {
+      ...share,
+      s3BucketType,
+      s3BucketName,
+    };
+  }
+
   async getShares() {
     const shares = await this.prisma.share.findMany({
       orderBy: {
@@ -286,23 +349,29 @@ export class ShareService {
     });
 
     return shares.map((share) => {
-      return {
+      return this.enrichShareWithS3Info({
         ...share,
         size: share.files.reduce((acc, file) => acc + parseInt(file.size), 0),
-      };
+      });
     });
   }
 
   async getSharesByUser(userId: string) {
     const shares = await this.prisma.share.findMany({
       where: {
-        creator: { id: userId },
         uploadLocked: true,
         // We want to grab any shares that are not expired or have their expiration date set to "never" (unix 0)
         OR: [
           { expiration: { gt: new Date() } },
           { expiration: { equals: moment(0).toDate() } },
         ],
+        // Access rules: either created by the user, or part of a shared collaborative folder
+        AND: {
+          OR: [
+            { creatorId: userId },
+            { folder: { accesses: { some: { userId } } } },
+          ],
+        },
       },
       orderBy: {
         expiration: "desc",
@@ -311,7 +380,7 @@ export class ShareService {
     });
 
     return shares.map((share) => {
-      return {
+      return this.enrichShareWithS3Info({
         ...share,
         size: share.files.reduce((acc, file) => acc + parseInt(file.size), 0),
         recipients: share.recipients.map((recipients) => recipients.email),
@@ -320,7 +389,7 @@ export class ShareService {
           passwordProtected: !!share.security?.password,
           burnAfterReading: share.security?.burnAfterReading ?? false,
         },
-      };
+      });
     });
   }
 
@@ -343,11 +412,11 @@ export class ShareService {
 
     if (share.removedReason)
       throw new NotFoundException(share.removedReason, "share_removed");
-    return {
+    return this.enrichShareWithS3Info({
       ...share,
       hasPassword: !!share.security?.password,
       burnAfterReading: share.security?.burnAfterReading ?? false,
-    };
+    });
   }
 
   async getMetaData(id: string) {
@@ -368,7 +437,7 @@ export class ShareService {
 
     if (!share) throw new NotFoundException("Share not found");
 
-    if (!share.creatorId && !isDeleterAdmin)
+    if (!share.creatorId && !isDeleterAdmin && share.uploadLocked)
       throw new ForbiddenException("Anonymous shares can't be deleted");
 
     await this.fileService.deleteAllFiles(shareId);
@@ -395,7 +464,7 @@ export class ShareService {
     });
   }
 
-  async getShareToken(shareId: string, password: string) {
+  async getShareToken(shareId: string, password: string, ip?: string) {
     const share = await this.prisma.share.findFirst({
       where: { id: shareId },
       include: {
@@ -416,6 +485,10 @@ export class ShareService {
         password,
       );
       if (!isPasswordValid) {
+        this.activityService.publish({
+          type: "security-alert",
+          data: { alertType: "failed-share-password", ip: ip || "N/A", target: shareId },
+        });
         throw new ForbiddenException("Wrong password", "wrong_password");
       }
     }

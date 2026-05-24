@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   UseGuards,
+  Req,
 } from "@nestjs/common";
 import { CreateShareGuard } from "src/share/guard/createShare.guard";
 import { ShareOwnerGuard } from "src/share/guard/shareOwner.guard";
@@ -14,6 +15,9 @@ import { ConfigService } from "src/config/config.service";
 import { getDiskSpace } from "src/utils/disk-space.util";
 import { SHARE_DIRECTORY } from "src/constants";
 import * as crypto from "crypto";
+import { Request } from "express";
+import { User } from "@prisma/client";
+import { ActivityService } from "src/activity/activity.service";
 
 @Controller("shares/:shareId/files/multipart")
 export class S3MultipartController {
@@ -21,6 +25,7 @@ export class S3MultipartController {
     private s3FileService: S3FileService,
     private prisma: PrismaService,
     private configService: ConfigService,
+    private activityService: ActivityService,
   ) {}
 
   @Post("initiate")
@@ -57,9 +62,9 @@ export class S3MultipartController {
       }
     }
 
-    // 1. Enforce SSD 100 GB absolute safety limit
+    // 1. Enforce SSD absolute safety limit
     const disk = await getDiskSpace(SHARE_DIRECTORY);
-    const safeLimit = 100 * 1024 * 1024 * 1024; // 100 GB
+    const safeLimit = this.configService.get("s3.ssdSecurityThreshold") as number;
     const ssdSpaceSafe = disk.free >= safeLimit;
 
     // 2. Check SSD Smart Rules
@@ -91,6 +96,13 @@ export class S3MultipartController {
     }
 
     if (!useS3) {
+      await this.prisma.share.update({
+        where: { id: shareId },
+        data: {
+          storageProvider: "LOCAL",
+          s3BucketId: null,
+        },
+      });
       return { storageProvider: "LOCAL" };
     }
 
@@ -233,6 +245,7 @@ export class S3MultipartController {
         parts: Array<{ ETag: string; PartNumber: number }>;
       }>;
     },
+    @Req() request: Request,
   ) {
     const { fileId, fileName, fileSize, hash, uploads } = body;
     if (!fileId || !fileName || !fileSize || !hash || !uploads || !Array.isArray(uploads)) {
@@ -264,6 +277,20 @@ export class S3MultipartController {
     if (share?.creatorId) {
       await this.prisma.updateUserStorageUsed(share.creatorId);
     }
+
+    const creatorUser = request["user"] as User | undefined;
+    const username = creatorUser?.username || "Anonyme";
+    this.activityService.publish({
+      type: "upload-progress",
+      data: {
+        shareId,
+        fileId,
+        fileName,
+        progress: 100,
+        size: finalSize,
+        username,
+      },
+    });
 
     return fileRecord;
   }

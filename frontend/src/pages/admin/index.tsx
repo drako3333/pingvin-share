@@ -14,6 +14,7 @@ import Meta from "../../components/Meta";
 import useTranslate from "../../hooks/useTranslate.hook";
 import configService from "../../services/config.service";
 import classes from "./index.module.css";
+import LiveActivityFeed from "../../components/admin/LiveActivityFeed";
 
 const Admin = () => {
   const t = useTranslate();
@@ -96,6 +97,8 @@ const Admin = () => {
             })}
           </Grid>
         </Paper>
+
+        <LiveActivityFeed />
 
         <Center mt={20}>
           <Text size="xs" c="dimmed">

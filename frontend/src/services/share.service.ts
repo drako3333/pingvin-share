@@ -128,6 +128,8 @@ const uploadFile = async (
   },
   chunkIndex: number,
   totalChunks: number,
+  onUploadProgress?: (progressEvent: any) => void,
+  signal?: AbortSignal,
 ): Promise<FileUploadResponse> => {
   return (
     await api.post(`shares/${shareId}/files`, chunk, {
@@ -139,6 +141,8 @@ const uploadFile = async (
         totalChunks,
         size: file.size,
       },
+      onUploadProgress,
+      signal,
     })
   ).data;
 };
@@ -221,6 +225,21 @@ const approveFile = async (shareId: string, fileId: string) => {
   return (await api.post(`shares/${shareId}/files/${fileId}/approve`)).data;
 };
 
+const reportProgress = async (
+  shareId: string,
+  fileId: string,
+  fileName: string,
+  progress: number,
+  size: number,
+) => {
+  await api.post(`activity/${shareId}/upload-progress`, {
+    fileId,
+    fileName,
+    progress,
+    size,
+  });
+};
+
 export default {
   list,
   create,
@@ -246,5 +265,6 @@ export default {
   signPart,
   completeMultipart,
   approveFile,
+  reportProgress,
 };
 

@@ -19,6 +19,8 @@ import { ShareModule } from "./share/share.module";
 import { UserModule } from "./user/user.module";
 import { NotificationModule } from "./notification/notification.module";
 import { AuditModule } from "./audit/audit.module";
+import { ActivityModule } from "./activity/activity.module";
+import { FolderModule } from "./folder/folder.module";
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { AuditModule } from "./audit/audit.module";
     AppCacheModule,
     NotificationModule,
     AuditModule,
+    ActivityModule,
+    FolderModule,
   ],
   controllers: [AppController],
   providers: [

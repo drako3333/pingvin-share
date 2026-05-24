@@ -18,6 +18,7 @@ import showCompletedUploadModal from "../../components/upload/modals/showComplet
 import showCreateUploadModal from "../../components/upload/modals/showCreateUploadModal";
 import useConfig from "../../hooks/config.hook";
 import useConfirmLeave from "../../hooks/confirm-leave.hook";
+import { TbBan } from "react-icons/tb";
 import useTranslate from "../../hooks/useTranslate.hook";
 import useUser from "../../hooks/user.hook";
 import shareService from "../../services/share.service";
@@ -56,6 +57,7 @@ const Upload = ({
   const lastBytesRef = useRef(0);
   const errorToastShownRef = useRef(false);
   const createdShareRef = useRef<Share | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useConfirmLeave({
     message: t("upload.notify.confirm-leave"),
@@ -198,6 +200,16 @@ const Upload = ({
     existingShareId?: string,
   ) => {
     setisUploading(true);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    // Initialize all files to progress = 0 so they show as "Queued" instead of having undefined progress
+    setFiles((oldFiles) =>
+      oldFiles.map((f) => {
+        f.uploadingProgress = 0;
+        return f;
+      })
+    );
 
     try {
       const isReverseShare = router.pathname != "/upload";
@@ -328,9 +340,17 @@ const Upload = ({
               );
 
               // Upload chunk to each presigned S3/B2 URL
-              const putPromises = signRes.urls.map(async ({ bucketId, url }: any) => {
+              const putPromises = signRes.urls.map(async ({ bucketId, url }: any, idx: number) => {
                 const response = await axios.put(url, blob, {
                   headers: { "Content-Type": "application/octet-stream" },
+                  signal: abortController.signal,
+                  onUploadProgress: idx === 0 ? (progressEvent) => {
+                    const chunkUploaded = progressEvent.loaded;
+                    const totalUploadedSoFar = from + chunkUploaded;
+                    const fileProgress = (totalUploadedSoFar / file.size) * 100;
+                    setFileProgress(Math.min(99, fileProgress));
+                    bytesUploadedRef.current[fileIndex] = totalUploadedSoFar;
+                  } : undefined
                 });
                 const etag = response.headers["etag"] || response.headers["ETag"];
                 if (!etag) {
@@ -356,8 +376,32 @@ const Upload = ({
               );
 
               bytesUploadedRef.current[fileIndex] = to;
-              setFileProgress(((chunkIndex + 1) / chunks) * 100);
+              let nextProgress = 0;
+              if (chunkIndex === chunks - 1) {
+                nextProgress = 99;
+                setFileProgress(99);
+              } else {
+                nextProgress = Math.min(99, Math.round(((chunkIndex + 1) / chunks) * 100));
+                setFileProgress(nextProgress);
+              }
+
+              if (chunkIndex === 0 || chunkIndex === chunks - 1 || nextProgress % 10 === 0) {
+                try {
+                  void shareService.reportProgress(
+                    createdShareRef.current!.id,
+                    s3FileId,
+                    file.name,
+                    nextProgress,
+                    file.size
+                  );
+                } catch (e) {
+                  console.debug("Silent S3 progress report fail:", e);
+                }
+              }
             } catch (err) {
+              if (axios.isCancel(err)) {
+                break;
+              }
               setFileProgress(-1);
               // Wait 5 seconds and retry the SAME chunk
               await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -385,6 +429,7 @@ const Upload = ({
           // Clear S3 temporary keys
           localStorage.removeItem(`pingvin_pending_s3_${createdShareRef.current!.id}_${fileIndex}`);
           localStorage.removeItem(`pingvin_pending_s3_parts_${createdShareRef.current!.id}_${fileIndex}`);
+          setFileProgress(100);
           return;
         }
 
@@ -422,6 +467,14 @@ const Upload = ({
                 },
                 chunkIndex,
                 chunks,
+                (progressEvent) => {
+                  const chunkUploaded = progressEvent.loaded;
+                  const totalUploadedSoFar = from + chunkUploaded;
+                  const fileProgress = (totalUploadedSoFar / file.size) * 100;
+                  setFileProgress(Math.min(99, fileProgress));
+                  bytesUploadedRef.current[fileIndex] = totalUploadedSoFar;
+                },
+                abortController.signal
               )
               .then((response) => {
                 fileId = response.id;
@@ -430,6 +483,9 @@ const Upload = ({
             bytesUploadedRef.current[fileIndex] = to;
             setFileProgress(((chunkIndex + 1) / chunks) * 100);
           } catch (e) {
+            if (axios.isCancel(e)) {
+              break;
+            }
             if (
               e instanceof AxiosError &&
               e.response?.data.error == "unexpected_chunk_index"
@@ -451,6 +507,40 @@ const Upload = ({
     await Promise.all(fileUploadPromises);
   };
 
+  const cancelUpload = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    const shareId = createdShareRef.current?.id;
+
+    setisUploading(false);
+    setFiles([]);
+    setCurrentSpeed(0);
+    setSpeedHistory([]);
+    bytesUploadedRef.current = {};
+    lastBytesRef.current = 0;
+
+    if (shareId) {
+      localStorage.removeItem("pingvin_pending_share");
+      files.forEach((_, idx) => {
+        localStorage.removeItem(`pingvin_pending_share_progress_${shareId}_${idx}`);
+        localStorage.removeItem(`pingvin_pending_s3_${shareId}_${idx}`);
+        localStorage.removeItem(`pingvin_pending_s3_parts_${shareId}_${idx}`);
+      });
+
+      try {
+        await shareService.remove(shareId);
+      } catch (err) {
+        console.error("Failed to delete cancelled share on backend:", err);
+      }
+    }
+
+    createdShareRef.current = null;
+    toast.success(t("upload.notify.cancelled"));
+  };
+
   const showCreateUploadModalCallback = (files: FileUpload[]) => {
     showCreateUploadModal(
       modals,
@@ -460,7 +550,7 @@ const Upload = ({
         allowUnauthenticatedShares: config.get(
           "share.allowUnauthenticatedShares",
         ),
-        enableEmailRecepients: config.get("email.enableShareEmailRecipients"),
+        enableEmailRecepients: config.get("notifications.enableShareEmailRecipients"),
         maxExpiration: config.get("share.maxExpiration"),
         shareIdLength: config.get("share.shareIdLength"),
         simplified,
@@ -612,20 +702,35 @@ const Upload = ({
                 {byteToHumanSizeString(currentSpeed)}/s
               </Text>
             </div>
-            <div>
-              <Text
+            <Group gap="xl" align="center">
+              <div style={{ textAlign: "right" }}>
+                <Text
+                  size="xs"
+                  c="dimmed"
+                  fw={600}
+                  tt="uppercase"
+                  style={{ letterSpacing: "0.05em" }}
+                >
+                  {t("analytics.time-remaining")}
+                </Text>
+                <Text size="xl" fw={800}>
+                  {formatSeconds(etaSeconds)}
+                </Text>
+                <Text size="xs" c="dimmed" fw={600} style={{ marginTop: 2 }}>
+                  {byteToHumanSizeString(totalUploaded)} / {byteToHumanSizeString(totalFilesSize)}
+                </Text>
+              </div>
+              <Button
+                variant="light"
+                color="red"
                 size="xs"
-                c="dimmed"
-                fw={600}
-                tt="uppercase"
-                style={{ letterSpacing: "0.05em" }}
+                radius="xl"
+                leftSection={<TbBan size={14} />}
+                onClick={cancelUpload}
               >
-                {t("analytics.time-remaining")}
-              </Text>
-              <Text size="xl" fw={800}>
-                {formatSeconds(etaSeconds)}
-              </Text>
-            </div>
+                {t("upload.cancel-button")}
+              </Button>
+            </Group>
           </Group>
           <div style={{ marginTop: 15, opacity: 0.85 }}>
             {renderSparkline()}
@@ -644,7 +749,7 @@ const Upload = ({
         isUploading={isUploading}
       />
       {files.length > 0 && (
-        <FileList<FileUpload> files={files} setFiles={setFiles} />
+        <FileList<FileUpload> files={files} setFiles={setFiles} isUploading={isUploading} />
       )}
     </>
   );

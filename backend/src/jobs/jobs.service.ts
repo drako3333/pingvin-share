@@ -11,6 +11,7 @@ import { ReverseShareService } from "src/reverseShare/reverseShare.service";
 import { SHARE_DIRECTORY } from "../constants";
 import { NotificationService } from "src/notification/notification.service";
 import { getDiskSpace } from "src/utils/disk-space.util";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
 
 @Injectable()
 export class JobsService implements OnModuleInit {
@@ -27,12 +28,25 @@ export class JobsService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    // Run migration on startup if local storage is disabled
+    const disableLocalStorage = this.configService.get("s3.disableLocalStorage");
+    if (disableLocalStorage === true || disableLocalStorage === "true") {
+      this.migrateAllLocalFilesToS3().catch((error) => {
+        this.logger.error("Failed to migrate all local files to S3 on startup:", error);
+      });
+    }
+
     this.configService.on("update", (key: string, value: any) => {
       if (key === "s3.disableLocalStorage" && (value === true || value === "true")) {
         this.migrateAllLocalFilesToS3().catch((error) => {
           this.logger.error("Failed to migrate all local files to S3 on config toggle:", error);
         });
       }
+    });
+
+    // Run repair check for storage discrepancies
+    this.repairStorageProvidersDiscrepancies().catch((error) => {
+      this.logger.error("Failed to run repair on startup:", error);
     });
   }
 
@@ -270,9 +284,23 @@ export class JobsService implements OnModuleInit {
         }
 
         // Now update the Share record in database to target "S3" storage provider
+        let targetBucketId: string | null = null;
+        if (this.configService.get("s3.multiBucketsEnabled")) {
+          const configStr = this.configService.get("s3.multiBucketsConfig");
+          try {
+            const buckets = JSON.parse(configStr || "[]");
+            if (buckets.length > 0) {
+              targetBucketId = buckets[0].id;
+            }
+          } catch {}
+        }
+
         await this.prisma.share.update({
           where: { id: share.id },
-          data: { storageProvider: "S3" },
+          data: { 
+            storageProvider: "S3",
+            s3BucketId: targetBucketId,
+          },
         });
 
         // Clean up the local files safely
@@ -327,8 +355,8 @@ export class JobsService implements OnModuleInit {
   @Cron("0 * * * *")
   async enforceSSDSpaceSafeguard() {
     const disk = await getDiskSpace(SHARE_DIRECTORY);
-    const safeLimit = 100 * 1024 * 1024 * 1024; // 100 GB
-    const targetLimit = 150 * 1024 * 1024 * 1024; // 150 GB
+    const safeLimit = this.configService.get("s3.ssdSecurityThreshold") as number;
+    const targetLimit = Math.ceil(safeLimit * 1.5);
 
     if (disk.free < safeLimit) {
       this.logger.warn(`SSD free space is critical (${(disk.free / 1024 / 1024 / 1024).toFixed(2)} GB free). Starting aggressive S3 migration to recover space...`);
@@ -373,9 +401,23 @@ export class JobsService implements OnModuleInit {
             );
           }
 
+          let targetBucketId: string | null = null;
+          if (this.configService.get("s3.multiBucketsEnabled")) {
+            const configStr = this.configService.get("s3.multiBucketsConfig");
+            try {
+              const buckets = JSON.parse(configStr || "[]");
+              if (buckets.length > 0) {
+                targetBucketId = buckets[0].id;
+              }
+            } catch {}
+          }
+
           await this.prisma.share.update({
             where: { id: share.id },
-            data: { storageProvider: "S3" },
+            data: { 
+              storageProvider: "S3",
+              s3BucketId: targetBucketId,
+            },
           });
 
           // Clean up local files
@@ -462,6 +504,87 @@ export class JobsService implements OnModuleInit {
   async migrateAllLocalFilesToS3() {
     this.logger.log("Triggered global migration of all local shares to S3 because local storage was disabled.");
 
+    // Clean up any files in the local _files directory that are already migrated to S3 (share is S3)
+    try {
+      const localFilesDir = `${SHARE_DIRECTORY}/_files`;
+      if (fs.existsSync(localFilesDir)) {
+        const localFiles = await fs.promises.readdir(localFilesDir);
+        for (const fileHash of localFiles) {
+          if (fileHash === ".keep" || fileHash === ".." || fileHash === ".") continue;
+          
+          // Check if this hash is referenced by any share in the database
+          const activeFiles = await this.prisma.file.findMany({
+            where: {
+              hash: fileHash,
+            },
+            include: {
+              share: true,
+            },
+          });
+
+          if (activeFiles.length === 0) {
+            // Completely orphaned file (not in DB at all) - safe to delete
+            this.logger.log(`Safely unlinking orphaned local file ${fileHash}`);
+            try {
+              await fs.promises.unlink(`${localFilesDir}/${fileHash}`);
+            } catch (err) {}
+          } else {
+            // The file is in the DB. Let's see if any referencing share is marked "S3"
+            const s3Shares = activeFiles.filter(f => f.share?.storageProvider === "S3");
+            const localShares = activeFiles.filter(f => f.share?.storageProvider === "LOCAL");
+
+            if (localShares.length === 0 && s3Shares.length > 0) {
+              // The file is supposedly on S3. Let's verify if it actually exists on S3!
+              const shareId = s3Shares[0].shareId;
+              let existsOnS3 = false;
+              try {
+                const { s3Instance, bucketName } = await this.s3FileService.getS3InstanceAndBucket(shareId);
+                const finalCASKey = `${this.s3FileService.getS3Path()}_files/${fileHash}`;
+                await s3Instance.send(
+                  new HeadObjectCommand({
+                    Bucket: bucketName,
+                    Key: finalCASKey,
+                  }),
+                );
+                existsOnS3 = true;
+              } catch {
+                existsOnS3 = false;
+              }
+
+              if (existsOnS3) {
+                // S3 verification success! Safe to delete from SSD
+                this.logger.log(`Safely unlinking local file ${fileHash} because it is verified on S3.`);
+                try {
+                  await fs.promises.unlink(`${localFilesDir}/${fileHash}`);
+                } catch (err) {}
+              } else {
+                // S3 verification failed! The file is NOT on S3 even though DB says it is!
+                // We MUST migrate it to S3 now to prevent data loss!
+                this.logger.warn(`File ${fileHash} is marked S3 in DB but missing from bucket. Migrating now...`);
+                try {
+                  const shareId = s3Shares[0].shareId;
+                  await this.s3FileService.migrateLocalFileToS3(
+                    `${localFilesDir}/${fileHash}`,
+                    activeFiles[0].id,
+                    activeFiles[0].name,
+                    fileHash,
+                    shareId,
+                  );
+                  // Now that it is successfully migrated, we can delete it safely!
+                  await fs.promises.unlink(`${localFilesDir}/${fileHash}`);
+                  this.logger.log(`Successfully migrated and cleaned up local file ${fileHash}`);
+                } catch (err) {
+                  this.logger.error(`Failed to migrate critical local file ${fileHash}:`, err);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      this.logger.error("Failed to clean up orphaned/migrated local files:", err);
+    }
+
     // Find all shares currently using LOCAL storage provider
     const sharesToMigrate = await this.prisma.share.findMany({
       where: {
@@ -511,9 +634,23 @@ export class JobsService implements OnModuleInit {
         }
 
         // Now update the Share record in database to target "S3" storage provider
+        let targetBucketId: string | null = null;
+        if (this.configService.get("s3.multiBucketsEnabled")) {
+          const configStr = this.configService.get("s3.multiBucketsConfig");
+          try {
+            const buckets = JSON.parse(configStr || "[]");
+            if (buckets.length > 0) {
+              targetBucketId = buckets[0].id;
+            }
+          } catch {}
+        }
+
         await this.prisma.share.update({
           where: { id: share.id },
-          data: { storageProvider: "S3" },
+          data: { 
+            storageProvider: "S3",
+            s3BucketId: targetBucketId,
+          },
         });
 
         // Clean up the local files safely
@@ -562,6 +699,56 @@ export class JobsService implements OnModuleInit {
           error,
         );
       }
+    }
+  }
+
+  async repairStorageProvidersDiscrepancies() {
+    this.logger.log("Checking for database-to-disk storage discrepancies...");
+    try {
+      const shares = await this.prisma.share.findMany({
+        where: { storageProvider: "S3" },
+        include: { files: true },
+      });
+
+      let repairedCount = 0;
+      for (const share of shares) {
+        if (share.files.length === 0) continue;
+
+        // Check if files are stored locally
+        let allFilesLocal = true;
+        for (const file of share.files) {
+          const localPath = file.hash
+            ? `${SHARE_DIRECTORY}/_files/${file.hash}`
+            : `${SHARE_DIRECTORY}/${share.id}/${file.id}`;
+          
+          try {
+            await fs.promises.access(localPath);
+          } catch {
+            // Local file is not accessible/doesn't exist
+            allFilesLocal = false;
+            break;
+          }
+        }
+
+        if (allFilesLocal) {
+          // If files are physical on SSD local, correct database to LOCAL
+          await this.prisma.share.update({
+            where: { id: share.id },
+            data: {
+              storageProvider: "LOCAL",
+              s3BucketId: null,
+            },
+          });
+          repairedCount++;
+          this.logger.log(`Repaired storageProvider for share ${share.id}: set to LOCAL`);
+        }
+      }
+
+      if (repairedCount > 0) {
+        this.logger.log(`Repaired ${repairedCount} shares with database storageProvider discrepancies.`);
+      }
+    } catch (err: any) {
+      this.logger.error("Failed to run storage provider discrepancies repair:", err);
     }
   }
 }

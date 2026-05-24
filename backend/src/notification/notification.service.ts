@@ -122,10 +122,10 @@ export class NotificationService implements OnModuleInit {
   }
 
   async sendWebhook(message: string, title = "Ustrohosting Share") {
-    const discordUrl = this.configService.get("share.webhookDiscord");
-    const slackUrl = this.configService.get("share.webhookSlack");
-    const telegramToken = this.configService.get("share.webhookTelegramToken");
-    const telegramChatId = this.configService.get("share.webhookTelegramChatId");
+    const discordUrl = this.configService.get("notifications.webhookDiscord");
+    const slackUrl = this.configService.get("notifications.webhookSlack");
+    const telegramToken = this.configService.get("notifications.webhookTelegramToken");
+    const telegramChatId = this.configService.get("notifications.webhookTelegramChatId");
 
     // 1. Discord Webhook
     if (discordUrl) {

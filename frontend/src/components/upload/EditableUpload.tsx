@@ -101,6 +101,12 @@ const EditableUpload = ({
                 },
                 chunkIndex,
                 chunks,
+                (progressEvent) => {
+                  const chunkUploaded = progressEvent.loaded;
+                  const totalUploadedSoFar = from + chunkUploaded;
+                  const fileProgress = (totalUploadedSoFar / file.size) * 100;
+                  setFileProgress(Math.min(99, fileProgress));
+                }
               )
               .then((response) => {
                 fileId = response.id;
@@ -155,6 +161,14 @@ const EditableUpload = ({
 
   const save = async () => {
     setIsUploading(true);
+
+    // Initialize all files to progress = 0 so they show as "Queued" instead of having undefined progress
+    setUploadingFiles((oldFiles) =>
+      oldFiles.map((f) => {
+        f.uploadingProgress = 0;
+        return f;
+      })
+    );
 
     try {
       await revertComplete();
@@ -222,7 +236,7 @@ const EditableUpload = ({
         isUploading={isUploading}
       />
       {existingAndUploadedFiles.length > 0 && (
-        <FileList files={existingAndUploadedFiles} setFiles={setFiles} />
+        <FileList files={existingAndUploadedFiles} setFiles={setFiles} isUploading={isUploading} />
       )}
     </>
   );

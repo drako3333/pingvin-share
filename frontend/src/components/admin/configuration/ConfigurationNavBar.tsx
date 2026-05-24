@@ -5,7 +5,7 @@ import {
   TbAt,
   TbBinaryTree,
   TbBucket,
-  TbMail,
+  TbBell,
   TbScale,
   TbServerBolt,
   TbSettings,
@@ -17,7 +17,7 @@ import classes from "./ConfigurationNavBar.module.css";
 
 const categories = [
   { name: "General", icon: <TbSettings /> },
-  { name: "Email", icon: <TbMail /> },
+  { name: "Notifications", icon: <TbBell /> },
   { name: "Share", icon: <TbShare /> },
   { name: "SMTP", icon: <TbAt /> },
   { name: "OAuth", icon: <TbSocial /> },

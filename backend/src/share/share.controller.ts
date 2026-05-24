@@ -173,7 +173,7 @@ export class ShareController {
     @Res({ passthrough: true }) response: Response,
     @Body() body: SharePasswordDto,
   ) {
-    const token = await this.shareService.getShareToken(id, body.password);
+    const token = await this.shareService.getShareToken(id, body.password, request.ip);
 
     this.clearShareTokenCookies(request, response);
     response.cookie(`share_${id}_token`, token, {

@@ -7,9 +7,10 @@ import { S3MultipartController } from "./s3-multipart.controller";
 import { FileService } from "./file.service";
 import { LocalFileService } from "./local.service";
 import { S3FileService } from "./s3.service";
+import { ActivityModule } from "src/activity/activity.module";
 
 @Module({
-  imports: [JwtModule.register({}), ReverseShareModule, ShareModule],
+  imports: [JwtModule.register({}), ReverseShareModule, ShareModule, ActivityModule],
   controllers: [FileController, S3MultipartController],
   providers: [FileService, LocalFileService, S3FileService],
   exports: [FileService, S3FileService, LocalFileService],

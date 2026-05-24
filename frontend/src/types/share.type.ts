@@ -10,6 +10,11 @@ export type Share = {
   size: number;
   hasPassword: boolean;
   burnAfterReading?: boolean;
+  storageProvider?: string;
+  s3BucketId?: string | null;
+  s3BucketName?: string | null;
+  s3BucketType?: string | null;
+  folderId?: string | null;
 };
 
 export type CompletedShare = Share & {

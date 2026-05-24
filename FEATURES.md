@@ -71,7 +71,7 @@ Liste de fonctionnalités proposées pour transformer Ustrohosting Share en une 
 
 ---
 
-### FEAT-007 · Tableau d'activité en temps réel (Live Feed)
+### FEAT-007 · Tableau d'activité en temps réel (Live Feed) - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐
 **Description** : Un flux d'activité en direct dans le dashboard admin montrant :
 - Uploads en cours (fichier, utilisateur, progression)
@@ -226,7 +226,7 @@ Migrer vers PostgreSQL permettrait :
 
 ## 💡 Fonctionnalités Additionnelles
 
-### FEAT-021 · Dossiers et organisation des partages
+### FEAT-021 · Dossiers et organisation des partages - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐⭐
 **Description** : Permettre aux utilisateurs d'organiser leurs partages dans des dossiers/catégories.
 - Création de dossiers personnalisés (Projets, Clients, Personnel, etc.)
@@ -315,7 +315,7 @@ Migrer vers PostgreSQL permettrait :
 
 ---
 
-### FEAT-029 · Tableau de bord utilisateur (User Dashboard)
+### FEAT-029 · Tableau de bord utilisateur (User Dashboard) - Fait 🟢
 **Priorité** : ⭐⭐⭐⭐
 **Description** : Remplacer la simple liste de partages par un vrai tableau de bord personnel.
 - Graphique d'activité (uploads/downloads par semaine)

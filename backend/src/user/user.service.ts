@@ -11,6 +11,7 @@ import { ConfigService } from "../config/config.service";
 import { FileService } from "../file/file.service";
 import { CreateUserDTO } from "./dto/createUser.dto";
 import { UpdateUserDto } from "./dto/updateUser.dto";
+import * as moment from "moment";
 
 @Injectable()
 export class UserSevice {
@@ -232,5 +233,128 @@ export class UserSevice {
         }
       }
     }
+  }
+
+  async getDashboardStats(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new BadRequestException("User not found");
+
+    const userShares = await this.prisma.share.findMany({
+      where: { creatorId: userId },
+      select: { id: true, name: true, views: true, createdAt: true },
+    });
+
+    const shareIds = userShares.map((s) => s.id);
+
+    // 1. Popular shares (most views)
+    const popularShares = [...userShares]
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 5);
+
+    // 2. Storage stats (BigInt converted to numbers to avoid JSON serialization issues)
+    const storage = {
+      used: Number(user.storageUsed),
+      quota: Number(user.storageQuota),
+    };
+
+    // 3. Activity Chart (last 7 days uploads and downloads)
+    const chartData = [];
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = moment().subtract(i, "days").startOf("day");
+      last7Days.push(date);
+    }
+
+    // Fetch uploads in last 7 days (Files added to user's shares)
+    const filesUploaded = await this.prisma.file.findMany({
+      where: {
+        shareId: { in: shareIds },
+        createdAt: { gte: moment().subtract(7, "days").startOf("day").toDate() },
+      },
+      select: { createdAt: true },
+    });
+
+    // Fetch downloads in last 7 days (ShareAnalytics for user's shares)
+    const downloads = await this.prisma.shareAnalytics.findMany({
+      where: {
+        shareId: { in: shareIds },
+        createdAt: { gte: moment().subtract(7, "days").startOf("day").toDate() },
+      },
+      select: { createdAt: true },
+    });
+
+    last7Days.forEach((day) => {
+      const label = day.format("dddd"); // e.g. "Lundi", "Mardi" in French
+      const start = day.toDate();
+      const end = moment(day).endOf("day").toDate();
+
+      const uploadsCount = filesUploaded.filter(
+        (f) => f.createdAt >= start && f.createdAt <= end
+      ).length;
+
+      const downloadsCount = downloads.filter(
+        (d) => d.createdAt >= start && d.createdAt <= end
+      ).length;
+
+      chartData.push({
+        label,
+        date: day.format("YYYY-MM-DD"),
+        uploads: uploadsCount,
+        downloads: downloadsCount,
+      });
+    });
+
+    // 4. Recent activity timeline
+    const timeline = [];
+
+    // Add last 5 share creations
+    const shareCreations = await this.prisma.share.findMany({
+      where: { creatorId: userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    // Add last 10 downloads analytics
+    const recentDownloads = await this.prisma.shareAnalytics.findMany({
+      where: { shareId: { in: shareIds } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    shareCreations.forEach((sc) => {
+      timeline.push({
+        id: `create-${sc.id}-${sc.createdAt.getTime()}`,
+        timestamp: sc.createdAt,
+        type: "upload",
+        title: "Partage créé",
+        description: `Le partage "${sc.name || sc.id}" a été initialisé avec succès.`,
+      });
+    });
+
+    recentDownloads.forEach((rd) => {
+      const parentShare = userShares.find((s) => s.id === rd.shareId);
+      timeline.push({
+        id: `download-${rd.id}-${rd.createdAt.getTime()}`,
+        timestamp: rd.createdAt,
+        type: "download",
+        title: "Fichier téléchargé",
+        description: `Quelqu'un a téléchargé un fichier du partage "${parentShare?.name || rd.shareId}" depuis l'IP ${rd.ip}.`,
+      });
+    });
+
+    // Sort combined timeline by timestamp desc
+    const sortedTimeline = timeline
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 8);
+
+    return {
+      storage,
+      popularShares,
+      chartData,
+      recentActivity: sortedTimeline,
+    };
   }
 }

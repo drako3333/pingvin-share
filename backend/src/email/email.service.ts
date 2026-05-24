@@ -128,16 +128,16 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
     description?: string,
     expiration?: Date,
   ) {
-    if (!this.config.get("email.enableShareEmailRecipients"))
+    if (!this.config.get("notifications.enableShareEmailRecipients"))
       throw new InternalServerErrorException("Email service disabled");
 
     const shareUrl = `${this.config.get("general.appUrl")}/s/${shareId}`;
 
     await this.sendMail(
       recipientEmail,
-      this.config.get("email.shareRecipientsSubject"),
+      this.config.get("notifications.shareRecipientsSubject"),
       this.config
-        .get("email.shareRecipientsMessage")
+        .get("notifications.shareRecipientsMessage")
         .replaceAll("\\n", "\n")
         .replaceAll("{creator}", creator?.username ?? "Someone")
         .replaceAll("{creatorEmail}", creator?.email ?? "")
@@ -157,9 +157,9 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
 
     await this.sendMail(
       recipientEmail,
-      this.config.get("email.reverseShareSubject"),
+      this.config.get("notifications.reverseShareSubject"),
       this.config
-        .get("email.reverseShareMessage")
+        .get("notifications.reverseShareMessage")
         .replaceAll("\\n", "\n")
         .replaceAll("{shareUrl}", shareUrl),
     );
@@ -172,9 +172,9 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
 
     await this.sendMail(
       recipientEmail,
-      this.config.get("email.resetPasswordSubject"),
+      this.config.get("notifications.resetPasswordSubject"),
       this.config
-        .get("email.resetPasswordMessage")
+        .get("notifications.resetPasswordMessage")
         .replaceAll("\\n", "\n")
         .replaceAll("{url}", resetPasswordUrl),
     );
@@ -185,9 +185,9 @@ export class EmailService implements OnModuleInit, OnModuleDestroy {
 
     await this.sendMail(
       recipientEmail,
-      this.config.get("email.inviteSubject"),
+      this.config.get("notifications.inviteSubject"),
       this.config
-        .get("email.inviteMessage")
+        .get("notifications.inviteMessage")
         .replaceAll("{url}", loginUrl)
         .replaceAll("{password}", password)
         .replaceAll("{email}", recipientEmail),

@@ -66,26 +66,29 @@ export class S3FileService {
       }
     }
 
-    if (this.config.get("s3.multiBucketsEnabled") && targetBucketId) {
+    if (this.config.get("s3.multiBucketsEnabled")) {
       const configStr = this.config.get("s3.multiBucketsConfig");
       try {
         const buckets = JSON.parse(configStr || "[]");
-        const bucketConfig = buckets.find((b: any) => b.id === targetBucketId);
-        if (bucketConfig) {
-          const checksumCalculation =
-            this.config.get("s3.useChecksum") === true ? null : "WHEN_REQUIRED";
-          const client = new S3Client({
-            endpoint: bucketConfig.endpoint,
-            region: bucketConfig.region,
-            credentials: {
-              accessKeyId: bucketConfig.key,
-              secretAccessKey: bucketConfig.secret,
-            },
-            forcePathStyle: true,
-            requestChecksumCalculation: checksumCalculation,
-            responseChecksumValidation: checksumCalculation,
-          });
-          return { s3Instance: client, bucketName: bucketConfig.bucketName };
+        if (buckets.length > 0) {
+          const activeBucketId = targetBucketId || buckets[0].id;
+          const bucketConfig = buckets.find((b: any) => b.id === activeBucketId);
+          if (bucketConfig) {
+            const checksumCalculation =
+              this.config.get("s3.useChecksum") === true ? null : "WHEN_REQUIRED";
+            const client = new S3Client({
+              endpoint: bucketConfig.endpoint,
+              region: bucketConfig.region,
+              credentials: {
+                accessKeyId: bucketConfig.key,
+                secretAccessKey: bucketConfig.secret,
+              },
+              forcePathStyle: true,
+              requestChecksumCalculation: checksumCalculation,
+              responseChecksumValidation: checksumCalculation,
+            });
+            return { s3Instance: client, bucketName: bucketConfig.bucketName };
+          }
         }
       } catch (err) {
         this.logger.error(`Error parsing s3.multiBucketsConfig or locating bucket ${targetBucketId}`, err);
@@ -587,8 +590,31 @@ export class S3FileService {
     fileHash: string,
     shareId: string,
   ): Promise<void> {
+    let computedHash = fileHash;
+    if (!computedHash) {
+      this.logger.log(`File hash missing for ${fileName} (${fileId}). Computing hash from local file ${localPath}...`);
+      try {
+        computedHash = await new Promise<string>((resolve, reject) => {
+          const hash = crypto.createHash("sha256");
+          const stream = createReadStream(localPath);
+          stream.on("data", (data) => hash.update(data));
+          stream.on("end", () => resolve(hash.digest("hex")));
+          stream.on("error", (err) => reject(err));
+        });
+        // Update database so that subsequent downloads retrieve the file by hash
+        await this.prisma.file.update({
+          where: { id: fileId },
+          data: { hash: computedHash },
+        });
+        this.logger.log(`Successfully computed and saved hash ${computedHash} for file ${fileId}`);
+      } catch (err: any) {
+        this.logger.error(`Failed to compute hash for file ${fileId}: ${err.message}`);
+        throw new Error(`Hash computation failed for ${fileId}`);
+      }
+    }
+
     const { s3Instance, bucketName } = await this.getS3InstanceAndBucket(shareId);
-    const finalCASKey = `${this.getS3Path()}_files/${fileHash}`;
+    const finalCASKey = `${this.getS3Path()}_files/${computedHash}`;
 
     // Check if the file already exists on S3 at the final CAS key
     let existsOnS3 = false;
